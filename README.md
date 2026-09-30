@@ -639,13 +639,28 @@ runs first (see [`logit`](#logit)).
 ready in about a second.
 3. Otherwise it runs the question set through the loaded backend with
 its default settings, inside the server (no HTTP), 8 questions at a
-time. It then fits T by minimizing log-loss over [0.05, 20] and
-measures the calibration error (ECE, 10 bins) out of fold, with
-group-disjoint 5-fold cross-validation and 95% bootstrap intervals.
-4. **T is kept only when the gain is clear**: the calibrated error's
-interval must lie entirely below the raw one's. Otherwise T = 1.0,
-source `calibrated`.
-5. The server saves the result and logs one line, for example
+time, and records each question's raw option scores and correct option.
+4. **Fit T.** T is the value in [0.05, 20] that makes the correct
+answers most likely: it minimizes the mean negative log-likelihood
+`-mean(log softmax(scores / T)[correct])`, found by golden-section search.
+5. **Test T on questions it didn't see.** The questions are split into
+5 folds (questions that share a `group` stay in the same fold). For each
+fold, T is fitted on the other four and applied to this one, so every
+question gets a calibrated answer from a T that never saw it.
+6. **Measure the error both ways.** Calibration error (ECE) sorts
+answers into 10 equal-width bins by the top option's probability and
+takes the weighted mean gap between stated confidence and actual
+accuracy: `ECE = sum over bins of (bin size / N) * |accuracy - confidence|`.
+It is computed for the raw answers (T = 1.0) and for the held-out
+calibrated answers.
+7. **Keep T only if the gain is clearly real.** Each ECE gets a 95%
+interval: resample the question groups with replacement 1,000 times,
+recompute ECE each time, and take the 2.5th and 97.5th percentiles. T is
+kept only if the calibrated interval's top is below the raw interval's
+bottom, i.e. the two intervals don't overlap. Otherwise the server uses
+T = 1.0, source `calibrated` (measured, no correction needed). The T kept
+is the one fitted on all questions in step 4.
+8. The server saves the result and logs one line, for example
 `decision calibration: T=9.51 kept (ECE 0.318 -> 0.122, 231/231 questions, jevbench, 21 s)`.
 
 **Until the startup work finishes, decision requests get a 503** with
