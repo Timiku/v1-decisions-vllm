@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.1.0 — first public release
+
+Typed decisions for vLLM v0.30.0, as an overlay on the API server.
 
 - Backends may add an optional `read_many(questions, request_id)` that
   answers several questions of one request from shared engine requests;
@@ -12,10 +14,6 @@
   read-only denoise scores all of them (`extra.audit.readout: "joint"`).
   Questions past the canvas width, or with max_steps > 1, are read one by
   one as before. Accuracy against per-question reads is not yet measured.
-
-## 0.1.0 — first public release
-
-Typed decisions for vLLM v0.30.0, as an overlay on the API server.
 
 - `POST /v1/decisions`: questions by id with pluggable types (`noul`,
   `choice`, `score` built in), per-request temperature, backend choice
