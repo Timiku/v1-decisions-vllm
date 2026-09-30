@@ -11,6 +11,8 @@ Surface:
 - `model_config`, `tokenizer`, `limits`, `architectures`
 - `await render(question, labels=None)` -> RenderedPrompt: the standard
   decision prompt (chat template, thinking off, markers checked)
+- `await render_joint(questions)` -> JointPrompt: one prompt asking
+  every question (same state), answered as "N: letter" lines
 - `await restricted_read(engine_input, token_ids, request_id)` ->
   (logprob by token id, RequestOutput): one pass, logprobs for exactly
   those token ids
@@ -32,6 +34,13 @@ class RenderedPrompt:
     engine_input: Any        # pass to restricted_read / generate
     input_tokens: int        # prompt length in tokens
     slot_ids: list[int]      # token id of each option's marker, in order
+    prompt_ids: list[int]    # the prompt's token ids
+
+
+@dataclass
+class JointPrompt:
+    engine_input: Any        # pass to generate
+    input_tokens: int        # prompt length in tokens
     prompt_ids: list[int]    # the prompt's token ids
 
 
@@ -92,6 +101,19 @@ class BackendHost:
                       else getattr(engine_input, "prompt_token_ids", None))
         return RenderedPrompt(engine_input, input_tokens, list(slot_ids),
                               list(prompt_ids or []))
+
+    async def render_joint(self, questions) -> JointPrompt:
+        """One prompt asking every question in `questions` (which must
+        share one state), answered as one "N: letter" line per question,
+        N its 1-based position, letters the default markers. For reads
+        that answer all questions from one pass. Raises BackendError when
+        the prompt can't be built (over the context)."""
+        build = await self._serving._build_joint_prompt(list(questions))
+        if not isinstance(build, tuple):
+            err = getattr(build, "error", None)
+            raise BackendError(getattr(err, "message", None) or str(build))
+        engine_input, input_tokens, prompt_ids = build
+        return JointPrompt(engine_input, input_tokens, list(prompt_ids))
 
     # ---- engine -----------------------------------------------------
     async def generate(self, engine_input, sampling_params,

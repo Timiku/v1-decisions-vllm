@@ -18,6 +18,15 @@ A backend is a class with:
     def __init__(self, host, **kwargs)   # host: BackendHost (host.py)
     async def read(self, question, request_id) -> BackendResult
 
+and optionally
+
+    async def read_many(self, questions, request_id)
+        -> list[BackendResult | BackendError | None]
+
+which answers several questions of one request (same state) from shared
+engine requests. The server calls it once for a multi-question request;
+a None entry is read on its own with `read`. See README.md.
+
 Register it with `register_backend`, or from a package advertising the
 `vllm.decision_backends` entry-point group. Selection at startup:
 `VLLM_TYPED_DECISIONS_BACKEND=name[:k=v,...]`, else the backend claiming

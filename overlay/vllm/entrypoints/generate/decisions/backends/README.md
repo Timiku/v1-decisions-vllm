@@ -62,6 +62,7 @@ Use nothing else from the server; this surface is what stays stable.
 |---|---|
 | `host.model_config`, `host.architectures`, `host.tokenizer`, `host.limits` | Facts about the served model and the server's limits |
 | `await host.render(question, labels=None)` | The standard decision prompt (chat template, thinking off, markers checked). Returns `engine_input`, `input_tokens`, `slot_ids` (each option's marker token) and `prompt_ids`. Raises `BackendError` when the prompt can't be read reliably |
+| `await host.render_joint(questions)` | One prompt asking every question (same state), answered as `N: letter` lines. Returns `engine_input`, `input_tokens`, `prompt_ids`. For `read_many` |
 | `await host.restricted_read(engine_input, token_ids, request_id)` | One pass returning the next-token logprob of exactly those token ids, plus the `RequestOutput` |
 | `await host.generate(engine_input, sampling_params, request_id)` | One engine request with your own sampling params; the final `RequestOutput` |
 | `await host.pool(prompt_ids, pooling_params, request_id)` | One pooling request (encoder models); the final output |
@@ -101,6 +102,27 @@ its own prompt (the encoder does, for Laya).
 - **Errors.** Raise `BackendError` for anything the caller can act on.
   Other exceptions are logged and reported the same way (a 500 if every
   question failed). `asyncio.CancelledError` must propagate.
+
+## Reading several questions at once (optional)
+
+A request's questions share one state. A backend that can answer several
+of them from one engine request adds:
+
+```python
+    async def read_many(self, questions, request_id):
+        # -> one entry per question, in order:
+        #    BackendResult, BackendError, or None ("read this one with read")
+```
+
+The server calls it once per request that has more than one question,
+then calls `read` for every question it left as `None`. So `read_many`
+can take the questions it handles well and decline the rest, or decline
+all of them. Each `BackendResult` is one question's read, under the same
+rules as `read`'s; split the shared request's `input_tokens` and
+`cached_input_tokens` across the questions so the request's usage adds up.
+If `read_many` raises, the server logs it and reads every question with
+`read`. `canvas` implements it (the joint canvas read); `logit` and
+`encoder` don't: their reads are one question per sequence.
 
 ## Registration and selection
 

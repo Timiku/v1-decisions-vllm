@@ -89,6 +89,16 @@ DECISION_SYSTEM_LABELS = (
     "with no explanation or reasoning."
 )
 
+# Joint prompt: every question of one request in one render, answered
+# as "N: letter" lines (the canvas joint read). Never the direct read.
+DECISION_SYSTEM_JOINT = (
+    "Apply each supplied criterion to the supplied evidence. For each "
+    "numbered question choose exactly one listed option. Respond with one "
+    "line per question, in order, as its number, a colon, a space and the "
+    "option's uppercase letter (for example \"1: A\"), with no explanation "
+    "or reasoning."
+)
+
 def _render_state(state: str | dict | list) -> str:
     if isinstance(state, str):
         return state
@@ -322,6 +332,74 @@ class ServingDecisions(BaseServing):
             },
         ]
 
+        prompt_ids = await self._render_to_answer(messages, request.model)
+        if not isinstance(prompt_ids, list):
+            return prompt_ids
+
+        tokenizer = self.base_renderer.get_tokenizer()
+        letters = labels if labels is not None else [
+            _get_limits().markers[i] for i in range(len(request.options))]
+
+        # Each label's token as the model's next token after this prompt.
+        try:
+            slot_ids = answer_slots(tokenizer, prompt_ids, letters)
+        except SlotError as e:
+            return self.create_error_response(str(e))
+
+        if len(prompt_ids) + 8 > self.model_config.max_model_len:
+            return self.create_error_response(
+                f"Decision prompt ({len(prompt_ids)} tokens) exceeds the "
+                "model length budget. Refused, never truncated.")
+
+        return tokens_input(prompt_ids), len(prompt_ids), slot_ids
+
+    async def _build_joint_prompt(
+        self,
+        questions: list[CompiledQuestion],
+    ):
+        """One prompt asking every question in `questions` (which share
+        one state), answered as one "N: letter" line per question, N the
+        1-based position. For backends that read all answers from one
+        pass (the canvas joint read). Not the calibrated render: a
+        different prompt from the direct read, never used by it.
+
+        Returns (engine_input, input_token_count, prompt_ids) or an
+        ErrorResponse."""
+        from vllm.inputs import tokens_input
+        from .limits import get_limits as _get_limits
+
+        markers = _get_limits().markers
+        state = _render_state(questions[0].state)
+        payload = {
+            "evidence": state,
+            "questions": [
+                {"number": n,
+                 "criterion": q.question,
+                 "options": [{"letter": markers[i], "description":
+                              o.description}
+                             for i, o in enumerate(q.options)]}
+                for n, q in enumerate(questions, 1)],
+        }
+        messages = [
+            {"role": "system", "content": DECISION_SYSTEM_JOINT},
+            {"role": "user",
+             "content": json.dumps(payload, ensure_ascii=False)},
+        ]
+        prompt_ids = await self._render_to_answer(messages,
+                                                  questions[0].model)
+        if not isinstance(prompt_ids, list):
+            return prompt_ids
+        if len(prompt_ids) + 8 > self.model_config.max_model_len:
+            return self.create_error_response(
+                f"Joint decision prompt ({len(prompt_ids)} tokens) exceeds "
+                "the model length budget. Refused, never truncated.")
+        return tokens_input(prompt_ids), len(prompt_ids), prompt_ids
+
+    async def _render_to_answer(self, messages: list[dict],
+                                model: str | None):
+        """Render `messages` through the served chat template and end the
+        prompt where the answer starts. Returns the prompt token ids, or
+        an ErrorResponse."""
         # Minimal request-shaped object for the render path. build_chat_params
         # / build_tok_params are the two entry points the chat path uses.
         # Thinking is switched off (reasoning_effort "none", which vLLM
@@ -337,7 +415,7 @@ class ServingDecisions(BaseServing):
         async def render(thinking_off: bool):
             req = ChatCompletionRequest(
                 messages=messages,  # type: ignore[arg-type]
-                model=request.model or "decisions",
+                model=model or "decisions",
                 max_tokens=1,
             )
             req.add_generation_prompt = True
@@ -382,8 +460,6 @@ class ServingDecisions(BaseServing):
             prompt_ids = prompt_ids[0]
 
         tokenizer = self.base_renderer.get_tokenizer()
-        letters = labels if labels is not None else [
-            _get_limits().markers[i] for i in range(len(request.options))]
 
         # End the prompt at the answer: close a reasoning block or output
         # channel the template left open, then add the empty reasoning
@@ -394,19 +470,7 @@ class ServingDecisions(BaseServing):
             prompt_ids += encode_suffix(tokenizer, closing)
         if self.startup.answer_suffix:
             prompt_ids += encode_suffix(tokenizer, self.startup.answer_suffix)
-
-        # Each label's token as the model's next token after this prompt.
-        try:
-            slot_ids = answer_slots(tokenizer, prompt_ids, letters)
-        except SlotError as e:
-            return self.create_error_response(str(e))
-
-        if len(prompt_ids) + 8 > self.model_config.max_model_len:
-            return self.create_error_response(
-                f"Decision prompt ({len(prompt_ids)} tokens) exceeds the "
-                "model length budget. Refused, never truncated.")
-
-        return tokens_input(prompt_ids), len(prompt_ids), slot_ids
+        return prompt_ids
 
     # ------------------------------------------------------------------
     # answer-slot self-check
@@ -512,7 +576,60 @@ class ServingDecisions(BaseServing):
         except Exception as e:
             logger.exception("Error during decision scoring")
             return self.create_error_response(e)
+        return self._finish(question, result, backend, temperature,
+                            temperature_source)
 
+    async def _read_all(
+        self,
+        questions: list[CompiledQuestion],
+        base_id: str,
+        qids: list[str],
+        backend,
+        temperature: float,
+        temperature_source: str,
+    ) -> list:
+        """Every question of one request. A backend with `read_many`
+        gets the whole set first; whatever it leaves as None is read one
+        by one with `read`. Results in `questions` order, shaped like
+        `_read_one`'s (exceptions returned, not raised)."""
+        results: list = [None] * len(questions)
+        read_many = getattr(backend, "read_many", None)
+        if read_many is not None and len(questions) > 1:
+            try:
+                joint = await read_many(questions, f"decision-{base_id}")
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:  # noqa: BLE001 - fall back to read()
+                from vllm.v1.engine.exceptions import EngineDeadError
+                if isinstance(e, EngineDeadError):
+                    raise
+                logger.exception("read_many failed; reading each question "
+                                 "on its own")
+                joint = [None] * len(questions)
+            if len(joint) != len(questions):
+                raise RuntimeError(
+                    f"backend {backend.name!r} read_many returned "
+                    f"{len(joint)} results for {len(questions)} questions")
+            for i, (q, r) in enumerate(zip(questions, joint)):
+                if isinstance(r, BackendError):
+                    results[i] = self.create_error_response(str(r))
+                elif r is not None:
+                    results[i] = self._finish(q, r, backend, temperature,
+                                              temperature_source)
+        todo = [i for i, r in enumerate(results) if r is None]
+        solo = await asyncio.gather(
+            *(self._read_one(questions[i], f"decision-{base_id}-{qids[i]}",
+                             backend, temperature, temperature_source)
+              for i in todo),
+            return_exceptions=True)
+        for i, r in zip(todo, solo):
+            results[i] = r
+        return results
+
+    def _finish(self, question: CompiledQuestion, result, backend,
+                temperature: float, temperature_source: str):
+        """A backend's read -> the wire answer: calibration temperature,
+        extra.backend / extra.audit, the question type's answer shape."""
         probs = restricted_softmax(result.option_logits,
                                    temperature=temperature)
         meta = dict(result.meta or {})
@@ -599,12 +716,9 @@ class ServingDecisions(BaseServing):
         base_id = self._base_request_id(raw_request,
                                         request.model or "decision")
         qids = list(request.questions)
-        results = await asyncio.gather(
-            *(self._read_one(compile_question(request, qid, options),
-                             f"decision-{base_id}-{qid}", backend,
-                             temperature, t_source)
-              for qid in qids),
-            return_exceptions=True)
+        results = await self._read_all(
+            [compile_question(request, qid, options) for qid in qids],
+            base_id, qids, backend, temperature, t_source)
 
         from vllm.v1.engine.exceptions import EngineDeadError
         extra_levels = request.extra

@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Backends may add an optional `read_many(questions, request_id)` that
+  answers several questions of one request from shared engine requests;
+  the server calls it once per multi-question request and reads whatever
+  it leaves with `read`. The host gains `render_joint(questions)`.
+- `canvas` implements it: the joint canvas read from the upstream
+  structured-diffusion example. One prompt asks every question, the
+  canvas holds `1: A`, `2: A`, ... with noise at each letter, and one
+  read-only denoise scores all of them (`extra.audit.readout: "joint"`).
+  Questions past the canvas width, or with max_steps > 1, are read one by
+  one as before. Accuracy against per-question reads is not yet measured.
+
 ## 0.1.0 — first public release
 
 Typed decisions for vLLM v0.30.0, as an overlay on the API server.
