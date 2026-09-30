@@ -1,0 +1,6 @@
+__pycache__/
+.pytest_cache/
+
+# agent handoffs and raw run output stay local
+/handoff/
+/runs/

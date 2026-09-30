@@ -1,0 +1,231 @@
+{"id": "easy-intent-00", "option_ids": ["billing_question", "cancel_order", "change_address", "report_damage", "track_order"], "option_logits": [-27.25, -28.5, -28.375, -27.875, 0.0]}
+{"id": "easy-intent-01", "option_ids": ["billing_question", "cancel_order", "change_address", "report_damage", "track_order"], "option_logits": [-29.125, 0.0, -27.5, -28.125, -30.125]}
+{"id": "easy-intent-02", "option_ids": ["billing_question", "cancel_order", "change_address", "report_damage", "track_order"], "option_logits": [-28.5, -27.125, 0.0, -29.375, -30.625]}
+{"id": "easy-intent-03", "option_ids": ["billing_question", "cancel_order", "change_address", "report_damage", "track_order"], "option_logits": [-25.125, -24.25, -24.375, 0.0, -24.0]}
+{"id": "easy-intent-04", "option_ids": ["billing_question", "cancel_order", "change_address", "report_damage", "track_order"], "option_logits": [0.0, -26.25, -25.5, -27.625, -27.125]}
+{"id": "easy-intent-05", "option_ids": ["billing_question", "cancel_order", "change_address", "report_damage", "track_order"], "option_logits": [-27.5, -28.625, -29.125, -28.25, 0.0]}
+{"id": "easy-intent-06", "option_ids": ["play_music", "send_message", "set_alarm", "turn_off_lights", "weather"], "option_logits": [-29.0, -27.25, 0.0, -28.375, -29.375]}
+{"id": "easy-intent-07", "option_ids": ["play_music", "send_message", "set_alarm", "turn_off_lights", "weather"], "option_logits": [0.0, -29.375, -28.625, -29.5, -30.625]}
+{"id": "easy-intent-08", "option_ids": ["play_music", "send_message", "set_alarm", "turn_off_lights", "weather"], "option_logits": [-27.5, -29.625, -30.375, -28.0, 0.0]}
+{"id": "easy-intent-09", "option_ids": ["play_music", "send_message", "set_alarm", "turn_off_lights", "weather"], "option_logits": [-27.75, 0.0, -26.625, -26.125, -27.375]}
+{"id": "easy-intent-10", "option_ids": ["play_music", "send_message", "set_alarm", "turn_off_lights", "weather"], "option_logits": [-28.375, -26.75, -25.75, 0.0, -28.0]}
+{"id": "easy-intent-11", "option_ids": ["play_music", "send_message", "set_alarm", "turn_off_lights", "weather"], "option_logits": [-28.0, -27.0, 0.0, -28.875, -30.0]}
+{"id": "easy-fact-00", "option_ids": ["true", "false"], "option_logits": [0.0, -26.5]}
+{"id": "easy-fact-01", "option_ids": ["true", "false"], "option_logits": [-25.625, 0.0]}
+{"id": "easy-fact-02", "option_ids": ["true", "false"], "option_logits": [0.0, -26.75]}
+{"id": "easy-fact-03", "option_ids": ["true", "false"], "option_logits": [-27.375, 0.0]}
+{"id": "easy-fact-04", "option_ids": ["true", "false"], "option_logits": [0.0, -26.75]}
+{"id": "easy-fact-05", "option_ids": ["true", "false"], "option_logits": [-23.875, 0.0]}
+{"id": "easy-fact-06", "option_ids": ["true", "false"], "option_logits": [0.0, -27.375]}
+{"id": "easy-fact-07", "option_ids": ["true", "false"], "option_logits": [-24.125, 0.0]}
+{"id": "easy-fact-08", "option_ids": ["true", "false"], "option_logits": [0.0, -27.75]}
+{"id": "easy-fact-09", "option_ids": ["true", "false"], "option_logits": [-26.75, 0.0]}
+{"id": "easy-fact-10", "option_ids": ["true", "false"], "option_logits": [0.0, -28.875]}
+{"id": "easy-fact-11", "option_ids": ["true", "false"], "option_logits": [-20.625, 0.0]}
+{"id": "easy-extraction-00", "option_ids": ["bank_transfer", "cash", "credit_card", "paypal"], "option_logits": [-24.25, -25.375, -24.25, 0.0]}
+{"id": "easy-extraction-01", "option_ids": ["bank_transfer", "cash", "credit_card", "paypal"], "option_logits": [-25.875, 0.0, -26.125, -27.625]}
+{"id": "easy-extraction-02", "option_ids": ["bank_transfer", "cash", "credit_card", "paypal"], "option_logits": [0.0, -26.875, -27.0, -28.0]}
+{"id": "easy-extraction-03", "option_ids": ["high", "low", "medium", "urgent"], "option_logits": [0.0, -24.875, -24.625, -26.25]}
+{"id": "easy-extraction-04", "option_ids": ["high", "low", "medium", "urgent"], "option_logits": [-26.5, 0.0, -26.375, -27.25]}
+{"id": "easy-extraction-05", "option_ids": ["high", "low", "medium", "urgent"], "option_logits": [-18.375, -22.5, -22.625, 0.0]}
+{"id": "easy-extraction-06", "option_ids": ["L", "M", "S", "XL"], "option_logits": [-25.75, 0.0, -26.375, -26.375]}
+{"id": "easy-extraction-07", "option_ids": ["L", "M", "S", "XL"], "option_logits": [-18.875, -23.25, -22.125, 0.0]}
+{"id": "easy-extraction-08", "option_ids": ["friday", "monday", "thursday", "tuesday", "wednesday"], "option_logits": [-28.5, -27.875, 0.0, -29.0, -30.75]}
+{"id": "easy-extraction-09", "option_ids": ["friday", "monday", "thursday", "tuesday", "wednesday"], "option_logits": [-27.875, 0.0, -27.25, -27.625, -30.0]}
+{"id": "easy-extraction-10", "option_ids": ["friday", "monday", "thursday", "tuesday", "wednesday"], "option_logits": [0.0, -28.625, -26.125, -27.0, -27.5]}
+{"id": "easy-extraction-11", "option_ids": ["bank_transfer", "cash", "credit_card", "paypal"], "option_logits": [-22.75, -26.125, 0.0, -26.875]}
+{"id": "easy-tool_selection-00", "option_ids": ["convert_currency", "create_calendar_event", "get_weather", "send_email", "translate_text"], "option_logits": [-27.75, -25.0, 0.0, -26.875, -29.0]}
+{"id": "easy-tool_selection-01", "option_ids": ["convert_currency", "create_calendar_event", "get_weather", "send_email", "translate_text"], "option_logits": [-25.375, -25.0, -25.125, 0.0, -26.25]}
+{"id": "easy-tool_selection-02", "option_ids": ["convert_currency", "create_calendar_event", "get_weather", "send_email", "translate_text"], "option_logits": [-26.875, 0.0, -26.25, -26.75, -29.375]}
+{"id": "easy-tool_selection-03", "option_ids": ["convert_currency", "create_calendar_event", "get_weather", "send_email", "translate_text"], "option_logits": [0.0, -26.375, -25.125, -26.625, -28.0]}
+{"id": "easy-tool_selection-04", "option_ids": ["convert_currency", "create_calendar_event", "get_weather", "send_email", "translate_text"], "option_logits": [-27.75, -28.375, -29.0, -27.25, 0.0]}
+{"id": "easy-tool_selection-05", "option_ids": ["convert_currency", "create_calendar_event", "get_weather", "send_email", "translate_text"], "option_logits": [-26.625, 0.0, -25.875, -26.375, -28.625]}
+{"id": "easy-tool_selection-06", "option_ids": ["book_restaurant", "call_taxi", "get_stock_price", "search_flights", "set_reminder"], "option_logits": [-24.625, -23.375, -22.125, 0.0, -24.5]}
+{"id": "easy-tool_selection-07", "option_ids": ["book_restaurant", "call_taxi", "get_stock_price", "search_flights", "set_reminder"], "option_logits": [0.0, -25.0, -24.125, -26.0, -26.125]}
+{"id": "easy-tool_selection-08", "option_ids": ["book_restaurant", "call_taxi", "get_stock_price", "search_flights", "set_reminder"], "option_logits": [-28.125, -28.625, -28.375, -26.75, 0.0]}
+{"id": "easy-tool_selection-09", "option_ids": ["book_restaurant", "call_taxi", "get_stock_price", "search_flights", "set_reminder"], "option_logits": [-27.25, -24.75, 0.0, -26.0, -28.375]}
+{"id": "easy-tool_selection-10", "option_ids": ["book_restaurant", "call_taxi", "get_stock_price", "search_flights", "set_reminder"], "option_logits": [-28.25, 0.0, -26.625, -27.0, -28.5]}
+{"id": "easy-tool_selection-11", "option_ids": ["book_restaurant", "call_taxi", "get_stock_price", "search_flights", "set_reminder"], "option_logits": [-28.0, -28.625, -28.5, -26.75, 0.0]}
+{"id": "original-policy-01-0", "option_ids": ["true", "false"], "option_logits": [-24.875, 0.0]}
+{"id": "original-policy-01-1", "option_ids": ["true", "false"], "option_logits": [-22.0, 0.0]}
+{"id": "original-policy-02-0", "option_ids": ["true", "false"], "option_logits": [-2.3841855067985307e-07, -15.5]}
+{"id": "original-policy-02-1", "option_ids": ["true", "false"], "option_logits": [-13.750000953674316, -1.0728830375228426e-06]}
+{"id": "original-policy-03-0", "option_ids": ["true", "false"], "option_logits": [-0.0011703077470883727, -6.7511701583862305]}
+{"id": "original-policy-03-1", "option_ids": ["true", "false"], "option_logits": [-18.625, 0.0]}
+{"id": "original-policy-04-0", "option_ids": ["true", "false"], "option_logits": [-17.25, 0.0]}
+{"id": "original-policy-04-1", "option_ids": ["true", "false"], "option_logits": [-23.5, 0.0]}
+{"id": "original-policy-05-0", "option_ids": ["true", "false"], "option_logits": [-17.375, 0.0]}
+{"id": "original-policy-05-1", "option_ids": ["true", "false"], "option_logits": [-18.125, 0.0]}
+{"id": "original-policy-06-0", "option_ids": ["true", "false"], "option_logits": [-1.1920928244535389e-07, -16.5]}
+{"id": "original-policy-06-1", "option_ids": ["true", "false"], "option_logits": [-1.1920928244535389e-07, -16.25]}
+{"id": "original-intent-01-0", "option_ids": ["cancel", "change_address", "other", "refund", "status"], "option_logits": [-15.75, -19.125, -20.25, -1.1920928244535389e-07, -19.0]}
+{"id": "original-intent-01-1", "option_ids": ["cancel", "change_address", "other", "refund", "status"], "option_logits": [-12.500003814697266, -16.375003814697266, -15.000003814697266, -4.172316494077677e-06, -15.625003814697266]}
+{"id": "original-intent-02-0", "option_ids": ["cancel", "change_address", "other", "refund", "status"], "option_logits": [-19.125, -3.576278118089249e-07, -15.25, -19.75, -16.0]}
+{"id": "original-intent-02-1", "option_ids": ["cancel", "change_address", "other", "refund", "status"], "option_logits": [-28.25, -27.25, -26.875, -27.0, 0.0]}
+{"id": "original-intent-03-0", "option_ids": ["cancel", "change_address", "other", "refund", "status"], "option_logits": [-23.25, 0.0, -21.625, -23.125, -24.0]}
+{"id": "original-intent-03-1", "option_ids": ["cancel", "change_address", "other", "refund", "status"], "option_logits": [-25.5, 0.0, -25.25, -25.75, -27.0]}
+{"id": "original-intent-04-0", "option_ids": ["cancel", "change_address", "other", "refund", "status"], "option_logits": [0.0, -20.875, -18.75, -19.625, -19.75]}
+{"id": "original-intent-04-1", "option_ids": ["cancel", "change_address", "other", "refund", "status"], "option_logits": [-1.2993727978027891e-05, -21.37501335144043, -11.25001335144043, -19.25001335144043, -20.75001335144043]}
+{"id": "original-intent-05-0", "option_ids": ["cancel", "change_address", "other", "refund", "status"], "option_logits": [-15.750000953674316, -15.000000953674316, -15.750000953674316, -5.960462772236497e-07, -18.5]}
+{"id": "original-intent-05-1", "option_ids": ["cancel", "change_address", "other", "refund", "status"], "option_logits": [-20.5, -23.5, 0.0, -21.375, -23.25]}
+{"id": "original-intent-06-0", "option_ids": ["cancel", "change_address", "other", "refund", "status"], "option_logits": [-18.875, -22.375, -22.75, -22.375, 0.0]}
+{"id": "original-intent-06-1", "option_ids": ["cancel", "change_address", "other", "refund", "status"], "option_logits": [-26.25, -25.5, -25.875, -25.0, 0.0]}
+{"id": "original-ordinal-01-0", "option_ids": ["0", "1", "2", "3"], "option_logits": [-1.1920928244535389e-07, -16.0, -20.0, -24.375]}
+{"id": "original-ordinal-01-1", "option_ids": ["0", "1", "2", "3"], "option_logits": [0.0, -22.625, -24.875, -27.125]}
+{"id": "original-ordinal-02-0", "option_ids": ["0", "1", "2", "3"], "option_logits": [-20.125123977661133, -0.00012337400403339416, -9.000123023986816, -20.875123977661133]}
+{"id": "original-ordinal-02-1", "option_ids": ["0", "1", "2", "3"], "option_logits": [-20.375, 0.0, -19.625, -24.25]}
+{"id": "original-ordinal-03-0", "option_ids": ["0", "1", "2", "3"], "option_logits": [-23.75, -21.5, 0.0, -24.625]}
+{"id": "original-ordinal-03-1", "option_ids": ["0", "1", "2", "3"], "option_logits": [-23.375, -20.375, 0.0, -23.875]}
+{"id": "original-ordinal-04-0", "option_ids": ["0", "1", "2", "3"], "option_logits": [-24.875, -23.875, -22.875, 0.0]}
+{"id": "original-ordinal-04-1", "option_ids": ["0", "1", "2", "3"], "option_logits": [-24.75, -24.125, -23.5, 0.0]}
+{"id": "original-ordinal-05-0", "option_ids": ["0", "1", "2", "3"], "option_logits": [-4.768370445162873e-07, -15.75, -15.0, -23.375]}
+{"id": "original-ordinal-05-1", "option_ids": ["0", "1", "2", "3"], "option_logits": [0.0, -20.5, -21.125, -24.25]}
+{"id": "original-ordinal-06-0", "option_ids": ["0", "1", "2", "3"], "option_logits": [-25.625, -23.25, 0.0, -25.625]}
+{"id": "original-ordinal-06-1", "option_ids": ["0", "1", "2", "3"], "option_logits": [-27.25, -24.875, 0.0, -26.625]}
+{"id": "original-extraction-01-0", "option_ids": ["courier", "pickup", "post", "unknown"], "option_logits": [-14.000000953674316, -8.344646857949556e-07, -17.375, -20.75]}
+{"id": "original-extraction-01-1", "option_ids": ["courier", "pickup", "post", "unknown"], "option_logits": [-4.768370445162873e-07, -15.0, -16.0, -17.5]}
+{"id": "original-extraction-02-0", "option_ids": ["courier", "pickup", "post", "unknown"], "option_logits": [-21.75, -24.125, -23.0, 0.0]}
+{"id": "original-extraction-02-1", "option_ids": ["courier", "pickup", "post", "unknown"], "option_logits": [-24.625, -25.5, -23.625, 0.0]}
+{"id": "original-extraction-03-0", "option_ids": ["courier", "pickup", "post", "unknown"], "option_logits": [-7.500553131103516, -0.0005530973430722952, -16.500553131103516, -19.500553131103516]}
+{"id": "original-extraction-03-1", "option_ids": ["courier", "pickup", "post", "unknown"], "option_logits": [0.0, -25.0, -25.0, -26.75]}
+{"id": "original-extraction-04-0", "option_ids": ["courier", "pickup", "post", "unknown"], "option_logits": [-25.75, -22.875, 0.0, -24.625]}
+{"id": "original-extraction-04-1", "option_ids": ["courier", "pickup", "post", "unknown"], "option_logits": [-24.375, -23.375, 0.0, -25.375]}
+{"id": "original-extraction-05-0", "option_ids": ["courier", "pickup", "post", "unknown"], "option_logits": [-23.125, -25.375, -24.125, 0.0]}
+{"id": "original-extraction-05-1", "option_ids": ["courier", "pickup", "post", "unknown"], "option_logits": [-18.5, -22.25, -22.0, 0.0]}
+{"id": "original-extraction-06-0", "option_ids": ["courier", "pickup", "post", "unknown"], "option_logits": [0.0, -23.625, -23.25, -25.25]}
+{"id": "original-extraction-06-1", "option_ids": ["courier", "pickup", "post", "unknown"], "option_logits": [0.0, -19.25, -19.75, -22.125]}
+{"id": "original-adequacy-01-0", "option_ids": ["true", "false"], "option_logits": [0.0, -24.625]}
+{"id": "original-adequacy-01-1", "option_ids": ["true", "false"], "option_logits": [-7.500553131103516, -0.0005529781919904053]}
+{"id": "original-adequacy-02-0", "option_ids": ["true", "false"], "option_logits": [-15.5, -2.3841855067985307e-07]}
+{"id": "original-adequacy-02-1", "option_ids": ["true", "false"], "option_logits": [-22.75, 0.0]}
+{"id": "original-adequacy-03-0", "option_ids": ["true", "false"], "option_logits": [0.0, -23.25]}
+{"id": "original-adequacy-03-1", "option_ids": ["true", "false"], "option_logits": [0.0, -23.375]}
+{"id": "original-adequacy-04-0", "option_ids": ["true", "false"], "option_logits": [0.0, -24.0]}
+{"id": "original-adequacy-04-1", "option_ids": ["true", "false"], "option_logits": [0.0, -24.625]}
+{"id": "original-adequacy-05-0", "option_ids": ["true", "false"], "option_logits": [-13.500000953674316, -1.4305104514278355e-06]}
+{"id": "original-adequacy-05-1", "option_ids": ["true", "false"], "option_logits": [-0.029750416055321693, -3.529750347137451]}
+{"id": "original-adequacy-06-0", "option_ids": ["true", "false"], "option_logits": [0.0, -22.25]}
+{"id": "original-adequacy-06-1", "option_ids": ["true", "false"], "option_logits": [0.0, -18.125]}
+{"id": "original-routing-01-0", "option_ids": ["coding", "coding_agent", "document", "general", "math", "tools"], "option_logits": [-24.875, -28.875, -27.875, -27.75, 0.0, -28.375]}
+{"id": "original-routing-01-1", "option_ids": ["coding", "coding_agent", "document", "general", "math", "tools"], "option_logits": [-23.75, -27.75, -27.375, -27.125, 0.0, -27.375]}
+{"id": "original-routing-02-0", "option_ids": ["coding", "coding_agent", "document", "general", "math", "tools"], "option_logits": [0.0, -24.25, -24.5, -27.125, -28.5, -29.5]}
+{"id": "original-routing-02-1", "option_ids": ["coding", "coding_agent", "document", "general", "math", "tools"], "option_logits": [0.0, -23.375, -24.125, -26.75, -27.875, -29.0]}
+{"id": "original-routing-03-0", "option_ids": ["coding", "coding_agent", "document", "general", "math", "tools"], "option_logits": [-25.75, 0.0, -25.0, -26.375, -26.875, -28.0]}
+{"id": "original-routing-03-1", "option_ids": ["coding", "coding_agent", "document", "general", "math", "tools"], "option_logits": [-26.375, 0.0, -24.875, -25.625, -26.125, -27.5]}
+{"id": "original-routing-04-0", "option_ids": ["coding", "coding_agent", "document", "general", "math", "tools"], "option_logits": [-19.5, -23.5, 0.0, -22.25, -22.375, -25.0]}
+{"id": "original-routing-04-1", "option_ids": ["coding", "coding_agent", "document", "general", "math", "tools"], "option_logits": [-7.753614902496338, -5.753614902496338, -0.0036149173974990845, -11.753615379333496, -15.753615379333496, -17.50361442565918]}
+{"id": "original-routing-05-0", "option_ids": ["coding", "coding_agent", "document", "general", "math", "tools"], "option_logits": [-24.75, -23.5, -25.625, -23.875, -22.75, 0.0]}
+{"id": "original-routing-05-1", "option_ids": ["coding", "coding_agent", "document", "general", "math", "tools"], "option_logits": [-20.75, -20.625, -22.5, -15.5, -20.5, -2.3841855067985307e-07]}
+{"id": "original-routing-06-0", "option_ids": ["coding", "coding_agent", "document", "general", "math", "tools"], "option_logits": [0.0, -21.625, -20.125, -20.125, -22.25, -21.125]}
+{"id": "original-routing-06-1", "option_ids": ["coding", "coding_agent", "document", "general", "math", "tools"], "option_logits": [-4.768370445162873e-07, -20.75, -19.5, -18.625, -20.75, -14.5]}
+{"id": "hard-opus-a-long_policy-01", "option_ids": ["deny_repeated_seepage", "deny_vacancy_exclusion", "pay_full_estimate_less_deductible", "pay_subject_to_10000_sublimit", "pay_subject_to_15000_sublimit"], "option_logits": [-24.625, -21.5, -24.75, -23.5, 0.0]}
+{"id": "hard-opus-a-long_policy-04", "option_ids": ["budget_holder", "cfo", "department_head", "executive_committee", "vp_and_finance_director"], "option_logits": [-18.25, -18.75, -4.768370445162873e-07, -18.125, -14.5]}
+{"id": "hard-opus-a-long_policy-08", "option_ids": ["full_repair_no_charge", "not_covered", "parts_covered_labour_charged", "pro_rata_replacement_credit"], "option_logits": [-2.8149547576904297, -5.81495475769043, -0.06495478749275208, -15.68995475769043]}
+{"id": "hard-opus-a-long_policy-09", "option_ids": ["license_exception_lvs", "license_required", "no_license_required", "shipment_prohibited"], "option_logits": [-12.000006675720215, -14.125006675720215, -6.9141146923357155e-06, -20.50000762939453]}
+{"id": "hard-opus-a-long_policy-11", "option_ids": ["true", "false"], "option_logits": [0.0, -18.0]}
+{"id": "hard-opus-a-long_policy-13", "option_ids": ["true", "false"], "option_logits": [-18.75, 0.0]}
+{"id": "hard-opus-a-long_policy-17", "option_ids": ["database_oncall", "no_page_ticket_only", "platform_oncall", "security_incident_response", "vendor_support"], "option_logits": [-2.3503527641296387, -0.1003526970744133, -8.85035228729248, -12.97535228729248, -14.47535228729248]}
+{"id": "hard-opus-a-long_policy-19", "option_ids": ["true", "false"], "option_logits": [0.0, -23.25]}
+{"id": "hard-opus-a-probability-03", "option_ids": ["true", "false"], "option_logits": [-0.21331162750720978, -1.7133116722106934]}
+{"id": "hard-opus-a-probability-04", "option_ids": ["early", "late", "on_time"], "option_logits": [-0.062004923820495605, -2.812005043029785, -10.437005043029785]}
+{"id": "hard-opus-a-probability-07", "option_ids": ["escalated", "reopened", "resolved_first_contact"], "option_logits": [-14.5, -21.25, -4.768370445162873e-07]}
+{"id": "hard-opus-a-probability-08", "option_ids": ["true", "false"], "option_logits": [-0.7003909945487976, -0.7003909945487976]}
+{"id": "hard-opus-a-temporal_numeric-03", "option_ids": ["true", "false"], "option_logits": [-14.375000953674316, -5.960462772236497e-07]}
+{"id": "hard-opus-a-temporal_numeric-06", "option_ids": ["true", "false"], "option_logits": [0.0, -23.375]}
+{"id": "hard-opus-a-temporal_numeric-07", "option_ids": ["sep_24", "sep_25", "sep_26", "sep_27", "sep_28"], "option_logits": [-6.131805419921875, -2.381805419921875, -0.131805419921875, -3.631805419921875, -6.006805419921875]}
+{"id": "hard-opus-a-temporal_numeric-09", "option_ids": ["true", "false"], "option_logits": [-0.0035336690489202738, -5.753533840179443]}
+{"id": "hard-opus-a-temporal_numeric-12", "option_ids": ["0", "1", "2", "3"], "option_logits": [-15.50000286102295, -14.50000286102295, -13.00000286102295, -2.9802276912960224e-06]}
+{"id": "hard-opus-b-ambiguous-02", "option_ids": ["cannot_determine", "false_positive", "real_incident"], "option_logits": [-22.125, -14.5, -4.768370445162873e-07]}
+{"id": "hard-opus-b-ambiguous-03", "option_ids": ["insufficient_information", "time_barred", "within_limitation"], "option_logits": [-8.850356101989746, -2.350355863571167, -0.10035582631826401]}
+{"id": "hard-opus-b-ambiguous-07", "option_ids": ["insufficient_information", "over_limit", "within_policy"], "option_logits": [-18.625, 0.0, -19.5]}
+{"id": "hard-opus-b-ambiguous-09", "option_ids": ["compromised", "inconclusive", "legitimate"], "option_logits": [-7.986990567587782e-06, -11.750007629394531, -16.25000762939453]}
+{"id": "hard-opus-b-ambiguous-10", "option_ids": ["ask_user_which_alex", "send_to_alex_moreno", "send_to_alexandra_lind"], "option_logits": [-7.500553131103516, -0.000553335587028414, -14.750553131103516]}
+{"id": "hard-opus-b-ambiguous-11", "option_ids": ["cannot_determine", "grade_correct", "grade_should_be_higher"], "option_logits": [-1.0728830375228426e-06, -13.750000953674316, -19.125001907348633]}
+{"id": "hard-opus-b-ambiguous-13", "option_ids": ["cannot_determine", "charge_data_team", "charge_platform_team", "split_50_50"], "option_logits": [-10.750021934509277, -15.125021934509277, -18.50002098083496, -2.169585604860913e-05]}
+{"id": "hard-opus-b-multi_hop-03", "option_ids": ["tier1_team_lead", "tier2_department_head", "tier3_cfo", "tier4_board"], "option_logits": [-12.250127792358398, -0.00012814177898690104, -9.000127792358398, -16.8751277923584]}
+{"id": "hard-opus-b-multi_hop-04", "option_ids": ["ana", "bjorn", "chen", "dmitri", "esra", "no_page_ticket_only"], "option_logits": [-10.750412940979004, -8.000412940979004, -10.000412940979004, -0.0004124982515349984, -11.875412940979004, -12.625412940979004]}
+{"id": "hard-opus-b-multi_hop-05", "option_ids": ["0", "1", "2", "3", "4"], "option_logits": [-11.25698471069336, -0.006984698586165905, -5.506984710693359, -6.006984710693359, -7.756984710693359]}
+{"id": "hard-opus-b-multi_hop-07", "option_ids": ["credit_10_percent", "credit_20_percent", "credit_25_percent", "credit_50_percent", "credit_full_month", "no_credit"], "option_logits": [-4.0285234451293945, -5.2785234451293945, -0.02852354757487774, -5.2785234451293945, -9.028523445129395, -15.403523445129395]}
+{"id": "hard-opus-b-multi_hop-08", "option_ids": ["true", "false"], "option_logits": [0.0, -17.625]}
+{"id": "hard-opus-b-probability-01", "option_ids": ["customer_wins", "customer_withdraws", "merchant_wins"], "option_logits": [-0.01104161236435175, -5.761041641235352, -5.011041641235352]}
+{"id": "hard-opus-b-probability-02", "option_ids": ["bad_push", "database_hardware", "upstream_provider"], "option_logits": [0.0, -18.5, -18.625]}
+{"id": "hard-opus-b-probability-03", "option_ids": ["true", "false"], "option_logits": [-2.130444288253784, -0.13044427335262299]}
+{"id": "hard-opus-b-probability-04", "option_ids": ["attended", "late_cancellation", "no_show"], "option_logits": [-0.0012522244360297918, -6.751252174377441, -9.501252174377441]}
+{"id": "hard-opus-b-probability-06", "option_ids": ["modified", "overturned", "upheld"], "option_logits": [-3.833838701248169, -0.08383870869874954, -2.833838701248169]}
+{"id": "hard-opus-b-tradeoff-01", "option_ids": ["escalate_to_engineering", "escalate_to_security", "page_oncall", "process_refund", "send_kb_article"], "option_logits": [-13.250001907348633, -1.7881377516459906e-06, -18.250001907348633, -20.125001907348633, -18.000001907348633]}
+{"id": "hard-opus-b-tradeoff-03", "option_ids": ["order_a", "order_b", "order_c", "order_d"], "option_logits": [-20.375, -17.125, 0.0, -20.375]}
+{"id": "hard-opus-b-tradeoff-06", "option_ids": ["true", "false"], "option_logits": [-6.251928806304932, -0.0019286142196506262]}
+{"id": "hard-opus-b-tradeoff-07", "option_ids": ["out_of_scope", "p0_fix_24h", "p1_fix_7d", "p2_fix_30d", "p3_backlog"], "option_logits": [-19.25, -17.0, -17.0, -1.1920928244535389e-07, -22.0]}
+{"id": "hard-opus-b-tradeoff-08", "option_ids": ["true", "false"], "option_logits": [-1.9102251529693604, -0.16022512316703796]}
+{"id": "hard-opus-b-tradeoff-12", "option_ids": ["deny_refund", "escalate_to_fraud_team", "offer_store_credit", "refund_now", "wait_for_inspection"], "option_logits": [-16.375, -20.5, -17.875, -16.375, -1.1920928244535389e-07]}
+{"id": "hard-opus-c-long_policy-02", "option_ids": ["erase_all", "erase_but_retain_transaction_records", "erase_marketing_only", "reject_unverified_request", "restrict_all_pending_legal_hold"], "option_logits": [-13.703893661499023, -2.5788941383361816, -13.703893661499023, -13.078893661499023, -0.07889404147863388]}
+{"id": "hard-opus-c-long_policy-03", "option_ids": ["eur_0", "eur_150", "eur_200", "eur_300", "eur_400", "eur_600"], "option_logits": [-15.750000953674316, -19.625, -18.125, -14.500000953674316, -9.536738616588991e-07, -15.250000953674316]}
+{"id": "hard-opus-c-long_policy-04", "option_ids": ["true", "false"], "option_logits": [0.0, -22.875]}
+{"id": "hard-opus-c-long_policy-05", "option_ids": ["0", "1", "2", "3"], "option_logits": [-2.3550209999084473, -5.355020999908447, -0.10502094030380249, -9.480020523071289]}
+{"id": "hard-opus-c-long_policy-08", "option_ids": ["0", "1", "2", "3"], "option_logits": [-19.625, -18.125, 0.0, -21.5]}
+{"id": "hard-opus-c-long_policy-10", "option_ids": ["credit_minus_restocking_fee", "full_credit", "reject_return", "repair_or_replace_only"], "option_logits": [-10.00009536743164, -9.512448741588742e-05, -10.00009536743164, -12.37509536743164]}
+{"id": "hard-opus-c-long_policy-11", "option_ids": ["true", "false"], "option_logits": [-1.6689160474925302e-05, -11.000016212463379]}
+{"id": "hard-opus-c-probability-03", "option_ids": ["halvorsen_polymer", "kuznets_technik", "ortega_seal_works"], "option_logits": [-17.75, -1.1920928244535389e-07, -15.625]}
+{"id": "hard-opus-c-temporal_numeric-02", "option_ids": ["true", "false"], "option_logits": [-0.38687199354171753, -1.1368720531463623]}
+{"id": "hard-opus-c-temporal_numeric-03", "option_ids": ["eur_617_00", "eur_688_00", "eur_692_00", "eur_693_90", "eur_812_00"], "option_logits": [-6.556501865386963, -3.931502103805542, -1.9315019845962524, -0.18150199949741364, -10.931502342224121]}
+{"id": "hard-opus-c-temporal_numeric-04", "option_ids": ["usd_2222_50", "usd_2303_01", "usd_2303_33", "usd_2335_00", "usd_2340_00"], "option_logits": [-8.97535514831543, -0.10035474598407745, -2.3503546714782715, -10.85035514831543, -12.97535514831543]}
+{"id": "hard-opus-c-temporal_numeric-06", "option_ids": ["none_declined", "sep_15_office_chair", "sep_16_taxi", "sep_17_parking", "sep_18_book_set", "sep_21_client_dinner"], "option_logits": [-8.940656698541716e-06, -11.750008583068848, -14.000008583068848, -15.625008583068848, -15.875008583068848, -18.875009536743164]}
+{"id": "hard-opus-c-temporal_numeric-08", "option_ids": ["eur_497_40", "eur_498_81", "eur_506_06", "eur_513_69", "eur_532_01"], "option_logits": [-4.342263698577881, -0.09226388484239578, -2.59226393699646, -8.217264175415039, -11.717264175415039]}
+{"id": "hard-opus-c-temporal_numeric-12", "option_ids": ["covered", "expired_24_month_term", "expired_30_month_cap"], "option_logits": [-0.00016080040950328112, -13.000161170959473, -8.750161170959473]}
+{"id": "hard-sol-a-adversarial-01", "option_ids": ["deny_inactive_user", "deny_missing_approval", "grant_access", "grant_owner_exception"], "option_logits": [-18.125, -16.25, -15.125, -3.576278118089249e-07]}
+{"id": "hard-sol-a-adversarial-06", "option_ids": ["true", "false"], "option_logits": [-8.500203132629395, -0.00020346954988781363]}
+{"id": "hard-sol-a-adversarial-07", "option_ids": ["delete_now", "needs_signature_review", "retain_indefinitely", "retain_until_2031"], "option_logits": [-14.875, -20.5, -19.375, -3.576278118089249e-07]}
+{"id": "hard-sol-a-adversarial-08", "option_ids": ["true", "false"], "option_logits": [0.0, -18.875]}
+{"id": "hard-sol-a-adversarial-09", "option_ids": ["0", "1", "2", "3"], "option_logits": [-16.75, -14.000000953674316, -8.344646857949556e-07, -21.375]}
+{"id": "hard-sol-a-adversarial-11", "option_ids": ["ethics_review", "major_grants", "manual_hold", "standard_research"], "option_logits": [-15.25, -20.5, -19.0, -2.3841855067985307e-07]}
+{"id": "hard-sol-a-multi_hop-01", "option_ids": ["accept_s2_dusk", "reject_cutoff", "reject_tier", "reroute_s3"], "option_logits": [-5.006777428206988e-06, -12.250004768371582, -15.250004768371582, -19.0000057220459]}
+{"id": "hard-sol-a-multi_hop-02", "option_ids": ["executive_bridge", "heron_q2", "insufficient_information", "security_primary"], "option_logits": [-11.500168800354004, -8.750168800354004, -16.500167846679688, -0.00016866691294126213]}
+{"id": "hard-sol-a-multi_hop-05", "option_ids": ["pay_manager_approved", "reject_category", "require_director", "require_finance_board"], "option_logits": [-0.001191621064208448, -10.751192092895508, -6.75119161605835, -18.751192092895508]}
+{"id": "hard-sol-a-multi_hop-07", "option_ids": ["admit", "deny_prerequisite", "deny_score", "manual_equivalency"], "option_logits": [-12.876506805419922, -6.50150728225708, -0.0015070997178554535, -13.001506805419922]}
+{"id": "hard-sol-a-multi_hop-08", "option_ids": ["central_engineering", "insufficient_log", "local_maintenance", "safety_shutdown"], "option_logits": [-12.75000286102295, -14.75000286102295, -3.3378546504536644e-06, -20.625003814697266]}
+{"id": "hard-sol-a-multi_hop-09", "option_ids": ["confirm_l3", "reject_capacity", "require_steward", "switch_l4"], "option_logits": [-0.005439006723463535, -8.505438804626465, -5.255438804626465, -12.755438804626465]}
+{"id": "hard-sol-a-multi_hop-10", "option_ids": ["approve_45_days", "deny_sensitive", "needs_field_review", "reduce_to_30_days"], "option_logits": [-7.676172256469727, -0.1761721968650818, -4.176172256469727, -1.9261722564697266]}
+{"id": "hard-sol-a-multi_hop-12", "option_ids": ["covered_recurrence", "expired", "needs_authentication", "wrong_issue_class"], "option_logits": [-2.1287667751312256, -1.6287667751312256, -0.3787667751312256, -8.878767013549805]}
+{"id": "hard-sol-a-trap-02", "option_ids": ["true", "false"], "option_logits": [-14.000000953674316, -8.344646857949556e-07]}
+{"id": "hard-sol-a-trap-04", "option_ids": ["true", "false"], "option_logits": [-15.5, -2.3841855067985307e-07]}
+{"id": "hard-sol-a-trap-05", "option_ids": ["0", "1", "2", "3"], "option_logits": [-0.3134651184082031, -9.813465118408203, -1.3134651184082031, -8.813465118408203]}
+{"id": "hard-sol-a-trap-06", "option_ids": ["await_internal_metrics", "close_agent_verified", "close_confirmed", "keep_open_unresolved"], "option_logits": [-17.75, -20.75, -22.0, 0.0]}
+{"id": "hard-sol-a-trap-08", "option_ids": ["canceled", "indeterminate", "late", "on_time"], "option_logits": [-20.87502098083496, -21.50002098083496, -10.750020980834961, -2.1457441107486375e-05]}
+{"id": "hard-sol-a-trap-10", "option_ids": ["blocked_failed_test", "blocked_second_review", "ready_one_review", "ready_two_reviews"], "option_logits": [-24.0, 0.0, -23.0, -17.125]}
+{"id": "hard-sol-a-trap-13", "option_ids": ["true", "false"], "option_logits": [-18.25, 0.0]}
+{"id": "hard-sol-a-trap-15", "option_ids": ["true", "false"], "option_logits": [-0.00026127262390218675, -8.250261306762695]}
+{"id": "hard-sol-b-judge_hard-01", "option_ids": ["true", "false"], "option_logits": [0.0, -28.25]}
+{"id": "hard-sol-b-judge_hard-02", "option_ids": ["true", "false"], "option_logits": [0.0, -27.875]}
+{"id": "hard-sol-b-judge_hard-05", "option_ids": ["true", "false"], "option_logits": [0.0, -24.625]}
+{"id": "hard-sol-b-judge_hard-08", "option_ids": ["true", "false"], "option_logits": [0.0, -25.0]}
+{"id": "hard-sol-b-judge_hard-10", "option_ids": ["true", "false"], "option_logits": [-2.622600959512056e-06, -13.00000286102295]}
+{"id": "hard-sol-b-judge_hard-14", "option_ids": ["true", "false"], "option_logits": [-16.5, -1.1920928244535389e-07]}
+{"id": "hard-sol-b-judge_hard-15", "option_ids": ["true", "false"], "option_logits": [0.0, -27.625]}
+{"id": "hard-sol-b-judge_hard-18", "option_ids": ["true", "false"], "option_logits": [0.0, -23.625]}
+{"id": "hard-sol-b-long_policy-01", "option_ids": ["approve_all", "approve_lodging_only", "approve_meals_only", "reject_entire_claim"], "option_logits": [-9.375600814819336, -0.0006003961316309869, -8.000600814819336, -8.625600814819336]}
+{"id": "hard-sol-b-long_policy-02", "option_ids": ["analytics_owner_only", "deny_current_export", "privacy_and_security", "privacy_only"], "option_logits": [-16.2500057220459, -15.750004768371582, -5.006777428206988e-06, -12.250004768371582]}
+{"id": "hard-sol-b-long_policy-05", "option_ids": ["delete_everything", "delete_nothing", "delete_only_profile", "delete_profile_omar_april_and_table"], "option_logits": [-7.804152965545654, -5.304152965545654, -3.0541529655456543, -0.05415307357907295]}
+{"id": "hard-sol-b-long_policy-06", "option_ids": ["east_ward", "harbor_neighbors", "no_award", "river_arts"], "option_logits": [-5.0067243576049805, -12.38172435760498, -12.25672435760498, -0.006724466569721699]}
+{"id": "hard-sol-b-routing_hard-01", "option_ids": ["data_pipeline", "desktop_support", "finance_review", "office_file_repair", "spreadsheet_formula"], "option_logits": [-27.0, -26.5, -24.5, 0.0, -24.625]}
+{"id": "hard-sol-b-routing_hard-02", "option_ids": ["customer_support", "fraud_review", "ledger_reconciliation", "mobile_app", "payment_disputes"], "option_logits": [-27.75, -26.625, 0.0, -28.25, -29.375]}
+{"id": "hard-sol-b-routing_hard-03", "option_ids": ["api_platform", "authoritative_dns", "endpoint_devices", "network_dns", "tls_certificates"], "option_logits": [-19.625, -21.875, -17.125, 0.0, -20.875]}
+{"id": "hard-sol-b-routing_hard-07", "option_ids": ["ci_infrastructure", "code_signing", "endpoint_security", "macos_runtime", "release_notarization"], "option_logits": [-24.75, -24.875, -27.625, -27.25, 0.0]}
+{"id": "hard-sol-b-routing_hard-09", "option_ids": ["git_client", "identity_login", "repository_admin", "source_access", "vpn_network"], "option_logits": [-20.125, -23.125, -21.125, 0.0, -21.375]}
+{"id": "hard-sol-b-temporal_numeric-01", "option_ids": ["before_open", "late_by_2h_or_more", "late_by_under_2h", "within_window"], "option_logits": [-8.009564399719238, -5.0095648765563965, -6.0095648765563965, -0.00956476479768753]}
+{"id": "hard-sol-b-temporal_numeric-02", "option_ids": ["at_least_100gb_below", "exactly_equal", "over_limit", "under_100gb_below"], "option_logits": [-8.755725860595703, -7.505725860595703, -0.0057258871383965015, -7.880725860595703]}
+{"id": "hard-sol-b-temporal_numeric-03", "option_ids": ["12_credits", "15_credits", "6_credits", "9_credits"], "option_logits": [-0.013296268880367279, -4.513296127319336, -6.263296127319336, -8.013296127319336]}
+{"id": "hard-sol-b-temporal_numeric-04", "option_ids": ["clear_fail", "narrow_fail", "pass"], "option_logits": [-7.511598587036133, -4.511598587036133, -0.011598417535424232]}
+{"id": "hard-sol-c-judge_hard-03", "option_ids": ["true", "false"], "option_logits": [-0.07888985425233841, -2.578889846801758]}
+{"id": "hard-sol-c-judge_hard-05", "option_ids": ["true", "false"], "option_logits": [0.0, -17.75]}
+{"id": "hard-sol-c-judge_hard-07", "option_ids": ["true", "false"], "option_logits": [0.0, -26.5]}
+{"id": "hard-sol-c-judge_hard-08", "option_ids": ["true", "false"], "option_logits": [0.0, -29.75]}
+{"id": "hard-sol-c-judge_hard-09", "option_ids": ["true", "false"], "option_logits": [0.0, -26.625]}
+{"id": "hard-sol-c-judge_hard-10", "option_ids": ["true", "false"], "option_logits": [0.0, -27.25]}
+{"id": "hard-sol-c-judge_hard-11", "option_ids": ["true", "false"], "option_logits": [-24.25, 0.0]}
+{"id": "hard-sol-c-judge_hard-13", "option_ids": ["true", "false"], "option_logits": [-0.061968062072992325, -2.8119680881500244]}
+{"id": "hard-sol-c-judge_hard-15", "option_ids": ["true", "false"], "option_logits": [0.0, -30.0]}
+{"id": "hard-sol-c-multi_hop-07", "option_ids": ["partial_release", "programme_review", "reject_draw", "release_draw"], "option_logits": [-11.755245208740234, -5.255244731903076, -12.630245208740234, -0.005244900938123465]}
+{"id": "hard-sol-c-multi_hop-09", "option_ids": ["bus_substitution", "call_fen_cross", "pass_fen_cross", "terminate_oakmere"], "option_logits": [-4.053033626405522e-05, -12.750040054321289, -11.500040054321289, -10.500040054321289]}
+{"id": "hard-sol-c-multi_hop-11", "option_ids": ["adjuster_referral", "coverage_confirmed", "coverage_excluded", "documentation_needed"], "option_logits": [-15.500000953674316, -17.625, -5.960462772236497e-07, -14.875000953674316]}
+{"id": "hard-sol-c-multi_hop-12", "option_ids": ["conservation_hold", "deny_request", "digital_copy_only", "supervised_delivery"], "option_logits": [-18.25, -21.5, -19.5, 0.0]}
+{"id": "hard-sol-c-multi_hop-13", "option_ids": ["engineering_review", "normal_release", "rework", "scrap_lot"], "option_logits": [-25.375, 0.0, -26.375, -27.0]}

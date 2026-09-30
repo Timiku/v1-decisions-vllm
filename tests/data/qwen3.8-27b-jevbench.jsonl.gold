@@ -1,0 +1,231 @@
+{"id": "easy-intent-00", "options": [{"id": "billing_question"}, {"id": "cancel_order"}, {"id": "change_address"}, {"id": "report_damage"}, {"id": "track_order"}], "label": 4, "family": "intent", "group_id": "easy-intent-00"}
+{"id": "easy-intent-01", "options": [{"id": "billing_question"}, {"id": "cancel_order"}, {"id": "change_address"}, {"id": "report_damage"}, {"id": "track_order"}], "label": 1, "family": "intent", "group_id": "easy-intent-01"}
+{"id": "easy-intent-02", "options": [{"id": "billing_question"}, {"id": "cancel_order"}, {"id": "change_address"}, {"id": "report_damage"}, {"id": "track_order"}], "label": 2, "family": "intent", "group_id": "easy-intent-02"}
+{"id": "easy-intent-03", "options": [{"id": "billing_question"}, {"id": "cancel_order"}, {"id": "change_address"}, {"id": "report_damage"}, {"id": "track_order"}], "label": 3, "family": "intent", "group_id": "easy-intent-03"}
+{"id": "easy-intent-04", "options": [{"id": "billing_question"}, {"id": "cancel_order"}, {"id": "change_address"}, {"id": "report_damage"}, {"id": "track_order"}], "label": 0, "family": "intent", "group_id": "easy-intent-04"}
+{"id": "easy-intent-05", "options": [{"id": "billing_question"}, {"id": "cancel_order"}, {"id": "change_address"}, {"id": "report_damage"}, {"id": "track_order"}], "label": 4, "family": "intent", "group_id": "easy-intent-05"}
+{"id": "easy-intent-06", "options": [{"id": "play_music"}, {"id": "send_message"}, {"id": "set_alarm"}, {"id": "turn_off_lights"}, {"id": "weather"}], "label": 2, "family": "intent", "group_id": "easy-intent-06"}
+{"id": "easy-intent-07", "options": [{"id": "play_music"}, {"id": "send_message"}, {"id": "set_alarm"}, {"id": "turn_off_lights"}, {"id": "weather"}], "label": 0, "family": "intent", "group_id": "easy-intent-07"}
+{"id": "easy-intent-08", "options": [{"id": "play_music"}, {"id": "send_message"}, {"id": "set_alarm"}, {"id": "turn_off_lights"}, {"id": "weather"}], "label": 4, "family": "intent", "group_id": "easy-intent-08"}
+{"id": "easy-intent-09", "options": [{"id": "play_music"}, {"id": "send_message"}, {"id": "set_alarm"}, {"id": "turn_off_lights"}, {"id": "weather"}], "label": 1, "family": "intent", "group_id": "easy-intent-09"}
+{"id": "easy-intent-10", "options": [{"id": "play_music"}, {"id": "send_message"}, {"id": "set_alarm"}, {"id": "turn_off_lights"}, {"id": "weather"}], "label": 3, "family": "intent", "group_id": "easy-intent-10"}
+{"id": "easy-intent-11", "options": [{"id": "play_music"}, {"id": "send_message"}, {"id": "set_alarm"}, {"id": "turn_off_lights"}, {"id": "weather"}], "label": 2, "family": "intent", "group_id": "easy-intent-11"}
+{"id": "easy-fact-00", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "fact", "group_id": "easy-fact-00"}
+{"id": "easy-fact-01", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "fact", "group_id": "easy-fact-01"}
+{"id": "easy-fact-02", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "fact", "group_id": "easy-fact-02"}
+{"id": "easy-fact-03", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "fact", "group_id": "easy-fact-03"}
+{"id": "easy-fact-04", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "fact", "group_id": "easy-fact-04"}
+{"id": "easy-fact-05", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "fact", "group_id": "easy-fact-05"}
+{"id": "easy-fact-06", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "fact", "group_id": "easy-fact-06"}
+{"id": "easy-fact-07", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "fact", "group_id": "easy-fact-07"}
+{"id": "easy-fact-08", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "fact", "group_id": "easy-fact-08"}
+{"id": "easy-fact-09", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "fact", "group_id": "easy-fact-09"}
+{"id": "easy-fact-10", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "fact", "group_id": "easy-fact-10"}
+{"id": "easy-fact-11", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "fact", "group_id": "easy-fact-11"}
+{"id": "easy-extraction-00", "options": [{"id": "bank_transfer"}, {"id": "cash"}, {"id": "credit_card"}, {"id": "paypal"}], "label": 3, "family": "extraction", "group_id": "easy-extraction-00"}
+{"id": "easy-extraction-01", "options": [{"id": "bank_transfer"}, {"id": "cash"}, {"id": "credit_card"}, {"id": "paypal"}], "label": 1, "family": "extraction", "group_id": "easy-extraction-01"}
+{"id": "easy-extraction-02", "options": [{"id": "bank_transfer"}, {"id": "cash"}, {"id": "credit_card"}, {"id": "paypal"}], "label": 0, "family": "extraction", "group_id": "easy-extraction-02"}
+{"id": "easy-extraction-03", "options": [{"id": "high"}, {"id": "low"}, {"id": "medium"}, {"id": "urgent"}], "label": 0, "family": "extraction", "group_id": "easy-extraction-03"}
+{"id": "easy-extraction-04", "options": [{"id": "high"}, {"id": "low"}, {"id": "medium"}, {"id": "urgent"}], "label": 1, "family": "extraction", "group_id": "easy-extraction-04"}
+{"id": "easy-extraction-05", "options": [{"id": "high"}, {"id": "low"}, {"id": "medium"}, {"id": "urgent"}], "label": 3, "family": "extraction", "group_id": "easy-extraction-05"}
+{"id": "easy-extraction-06", "options": [{"id": "L"}, {"id": "M"}, {"id": "S"}, {"id": "XL"}], "label": 1, "family": "extraction", "group_id": "easy-extraction-06"}
+{"id": "easy-extraction-07", "options": [{"id": "L"}, {"id": "M"}, {"id": "S"}, {"id": "XL"}], "label": 3, "family": "extraction", "group_id": "easy-extraction-07"}
+{"id": "easy-extraction-08", "options": [{"id": "friday"}, {"id": "monday"}, {"id": "thursday"}, {"id": "tuesday"}, {"id": "wednesday"}], "label": 2, "family": "extraction", "group_id": "easy-extraction-08"}
+{"id": "easy-extraction-09", "options": [{"id": "friday"}, {"id": "monday"}, {"id": "thursday"}, {"id": "tuesday"}, {"id": "wednesday"}], "label": 1, "family": "extraction", "group_id": "easy-extraction-09"}
+{"id": "easy-extraction-10", "options": [{"id": "friday"}, {"id": "monday"}, {"id": "thursday"}, {"id": "tuesday"}, {"id": "wednesday"}], "label": 0, "family": "extraction", "group_id": "easy-extraction-10"}
+{"id": "easy-extraction-11", "options": [{"id": "bank_transfer"}, {"id": "cash"}, {"id": "credit_card"}, {"id": "paypal"}], "label": 2, "family": "extraction", "group_id": "easy-extraction-11"}
+{"id": "easy-tool_selection-00", "options": [{"id": "convert_currency"}, {"id": "create_calendar_event"}, {"id": "get_weather"}, {"id": "send_email"}, {"id": "translate_text"}], "label": 2, "family": "tool_selection", "group_id": "easy-tool_selection-00"}
+{"id": "easy-tool_selection-01", "options": [{"id": "convert_currency"}, {"id": "create_calendar_event"}, {"id": "get_weather"}, {"id": "send_email"}, {"id": "translate_text"}], "label": 3, "family": "tool_selection", "group_id": "easy-tool_selection-01"}
+{"id": "easy-tool_selection-02", "options": [{"id": "convert_currency"}, {"id": "create_calendar_event"}, {"id": "get_weather"}, {"id": "send_email"}, {"id": "translate_text"}], "label": 1, "family": "tool_selection", "group_id": "easy-tool_selection-02"}
+{"id": "easy-tool_selection-03", "options": [{"id": "convert_currency"}, {"id": "create_calendar_event"}, {"id": "get_weather"}, {"id": "send_email"}, {"id": "translate_text"}], "label": 0, "family": "tool_selection", "group_id": "easy-tool_selection-03"}
+{"id": "easy-tool_selection-04", "options": [{"id": "convert_currency"}, {"id": "create_calendar_event"}, {"id": "get_weather"}, {"id": "send_email"}, {"id": "translate_text"}], "label": 4, "family": "tool_selection", "group_id": "easy-tool_selection-04"}
+{"id": "easy-tool_selection-05", "options": [{"id": "convert_currency"}, {"id": "create_calendar_event"}, {"id": "get_weather"}, {"id": "send_email"}, {"id": "translate_text"}], "label": 1, "family": "tool_selection", "group_id": "easy-tool_selection-05"}
+{"id": "easy-tool_selection-06", "options": [{"id": "book_restaurant"}, {"id": "call_taxi"}, {"id": "get_stock_price"}, {"id": "search_flights"}, {"id": "set_reminder"}], "label": 3, "family": "tool_selection", "group_id": "easy-tool_selection-06"}
+{"id": "easy-tool_selection-07", "options": [{"id": "book_restaurant"}, {"id": "call_taxi"}, {"id": "get_stock_price"}, {"id": "search_flights"}, {"id": "set_reminder"}], "label": 0, "family": "tool_selection", "group_id": "easy-tool_selection-07"}
+{"id": "easy-tool_selection-08", "options": [{"id": "book_restaurant"}, {"id": "call_taxi"}, {"id": "get_stock_price"}, {"id": "search_flights"}, {"id": "set_reminder"}], "label": 4, "family": "tool_selection", "group_id": "easy-tool_selection-08"}
+{"id": "easy-tool_selection-09", "options": [{"id": "book_restaurant"}, {"id": "call_taxi"}, {"id": "get_stock_price"}, {"id": "search_flights"}, {"id": "set_reminder"}], "label": 2, "family": "tool_selection", "group_id": "easy-tool_selection-09"}
+{"id": "easy-tool_selection-10", "options": [{"id": "book_restaurant"}, {"id": "call_taxi"}, {"id": "get_stock_price"}, {"id": "search_flights"}, {"id": "set_reminder"}], "label": 1, "family": "tool_selection", "group_id": "easy-tool_selection-10"}
+{"id": "easy-tool_selection-11", "options": [{"id": "book_restaurant"}, {"id": "call_taxi"}, {"id": "get_stock_price"}, {"id": "search_flights"}, {"id": "set_reminder"}], "label": 4, "family": "tool_selection", "group_id": "easy-tool_selection-11"}
+{"id": "original-policy-01-0", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "policy", "group_id": "original-policy-01"}
+{"id": "original-policy-01-1", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "policy", "group_id": "original-policy-01"}
+{"id": "original-policy-02-0", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "policy", "group_id": "original-policy-02"}
+{"id": "original-policy-02-1", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "policy", "group_id": "original-policy-02"}
+{"id": "original-policy-03-0", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "policy", "group_id": "original-policy-03"}
+{"id": "original-policy-03-1", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "policy", "group_id": "original-policy-03"}
+{"id": "original-policy-04-0", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "policy", "group_id": "original-policy-04"}
+{"id": "original-policy-04-1", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "policy", "group_id": "original-policy-04"}
+{"id": "original-policy-05-0", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "policy", "group_id": "original-policy-05"}
+{"id": "original-policy-05-1", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "policy", "group_id": "original-policy-05"}
+{"id": "original-policy-06-0", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "policy", "group_id": "original-policy-06"}
+{"id": "original-policy-06-1", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "policy", "group_id": "original-policy-06"}
+{"id": "original-intent-01-0", "options": [{"id": "cancel"}, {"id": "change_address"}, {"id": "other"}, {"id": "refund"}, {"id": "status"}], "label": 3, "family": "intent", "group_id": "original-intent-01"}
+{"id": "original-intent-01-1", "options": [{"id": "cancel"}, {"id": "change_address"}, {"id": "other"}, {"id": "refund"}, {"id": "status"}], "label": 3, "family": "intent", "group_id": "original-intent-01"}
+{"id": "original-intent-02-0", "options": [{"id": "cancel"}, {"id": "change_address"}, {"id": "other"}, {"id": "refund"}, {"id": "status"}], "label": 4, "family": "intent", "group_id": "original-intent-02"}
+{"id": "original-intent-02-1", "options": [{"id": "cancel"}, {"id": "change_address"}, {"id": "other"}, {"id": "refund"}, {"id": "status"}], "label": 4, "family": "intent", "group_id": "original-intent-02"}
+{"id": "original-intent-03-0", "options": [{"id": "cancel"}, {"id": "change_address"}, {"id": "other"}, {"id": "refund"}, {"id": "status"}], "label": 1, "family": "intent", "group_id": "original-intent-03"}
+{"id": "original-intent-03-1", "options": [{"id": "cancel"}, {"id": "change_address"}, {"id": "other"}, {"id": "refund"}, {"id": "status"}], "label": 1, "family": "intent", "group_id": "original-intent-03"}
+{"id": "original-intent-04-0", "options": [{"id": "cancel"}, {"id": "change_address"}, {"id": "other"}, {"id": "refund"}, {"id": "status"}], "label": 0, "family": "intent", "group_id": "original-intent-04"}
+{"id": "original-intent-04-1", "options": [{"id": "cancel"}, {"id": "change_address"}, {"id": "other"}, {"id": "refund"}, {"id": "status"}], "label": 0, "family": "intent", "group_id": "original-intent-04"}
+{"id": "original-intent-05-0", "options": [{"id": "cancel"}, {"id": "change_address"}, {"id": "other"}, {"id": "refund"}, {"id": "status"}], "label": 2, "family": "intent", "group_id": "original-intent-05"}
+{"id": "original-intent-05-1", "options": [{"id": "cancel"}, {"id": "change_address"}, {"id": "other"}, {"id": "refund"}, {"id": "status"}], "label": 2, "family": "intent", "group_id": "original-intent-05"}
+{"id": "original-intent-06-0", "options": [{"id": "cancel"}, {"id": "change_address"}, {"id": "other"}, {"id": "refund"}, {"id": "status"}], "label": 4, "family": "intent", "group_id": "original-intent-06"}
+{"id": "original-intent-06-1", "options": [{"id": "cancel"}, {"id": "change_address"}, {"id": "other"}, {"id": "refund"}, {"id": "status"}], "label": 4, "family": "intent", "group_id": "original-intent-06"}
+{"id": "original-ordinal-01-0", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}], "label": 0, "family": "ordinal", "group_id": "original-ordinal-01"}
+{"id": "original-ordinal-01-1", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}], "label": 0, "family": "ordinal", "group_id": "original-ordinal-01"}
+{"id": "original-ordinal-02-0", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}], "label": 1, "family": "ordinal", "group_id": "original-ordinal-02"}
+{"id": "original-ordinal-02-1", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}], "label": 1, "family": "ordinal", "group_id": "original-ordinal-02"}
+{"id": "original-ordinal-03-0", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}], "label": 2, "family": "ordinal", "group_id": "original-ordinal-03"}
+{"id": "original-ordinal-03-1", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}], "label": 2, "family": "ordinal", "group_id": "original-ordinal-03"}
+{"id": "original-ordinal-04-0", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}], "label": 3, "family": "ordinal", "group_id": "original-ordinal-04"}
+{"id": "original-ordinal-04-1", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}], "label": 3, "family": "ordinal", "group_id": "original-ordinal-04"}
+{"id": "original-ordinal-05-0", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}], "label": 0, "family": "ordinal", "group_id": "original-ordinal-05"}
+{"id": "original-ordinal-05-1", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}], "label": 0, "family": "ordinal", "group_id": "original-ordinal-05"}
+{"id": "original-ordinal-06-0", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}], "label": 2, "family": "ordinal", "group_id": "original-ordinal-06"}
+{"id": "original-ordinal-06-1", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}], "label": 2, "family": "ordinal", "group_id": "original-ordinal-06"}
+{"id": "original-extraction-01-0", "options": [{"id": "courier"}, {"id": "pickup"}, {"id": "post"}, {"id": "unknown"}], "label": 1, "family": "extraction", "group_id": "original-extraction-01"}
+{"id": "original-extraction-01-1", "options": [{"id": "courier"}, {"id": "pickup"}, {"id": "post"}, {"id": "unknown"}], "label": 1, "family": "extraction", "group_id": "original-extraction-01"}
+{"id": "original-extraction-02-0", "options": [{"id": "courier"}, {"id": "pickup"}, {"id": "post"}, {"id": "unknown"}], "label": 3, "family": "extraction", "group_id": "original-extraction-02"}
+{"id": "original-extraction-02-1", "options": [{"id": "courier"}, {"id": "pickup"}, {"id": "post"}, {"id": "unknown"}], "label": 3, "family": "extraction", "group_id": "original-extraction-02"}
+{"id": "original-extraction-03-0", "options": [{"id": "courier"}, {"id": "pickup"}, {"id": "post"}, {"id": "unknown"}], "label": 0, "family": "extraction", "group_id": "original-extraction-03"}
+{"id": "original-extraction-03-1", "options": [{"id": "courier"}, {"id": "pickup"}, {"id": "post"}, {"id": "unknown"}], "label": 0, "family": "extraction", "group_id": "original-extraction-03"}
+{"id": "original-extraction-04-0", "options": [{"id": "courier"}, {"id": "pickup"}, {"id": "post"}, {"id": "unknown"}], "label": 2, "family": "extraction", "group_id": "original-extraction-04"}
+{"id": "original-extraction-04-1", "options": [{"id": "courier"}, {"id": "pickup"}, {"id": "post"}, {"id": "unknown"}], "label": 2, "family": "extraction", "group_id": "original-extraction-04"}
+{"id": "original-extraction-05-0", "options": [{"id": "courier"}, {"id": "pickup"}, {"id": "post"}, {"id": "unknown"}], "label": 3, "family": "extraction", "group_id": "original-extraction-05"}
+{"id": "original-extraction-05-1", "options": [{"id": "courier"}, {"id": "pickup"}, {"id": "post"}, {"id": "unknown"}], "label": 3, "family": "extraction", "group_id": "original-extraction-05"}
+{"id": "original-extraction-06-0", "options": [{"id": "courier"}, {"id": "pickup"}, {"id": "post"}, {"id": "unknown"}], "label": 0, "family": "extraction", "group_id": "original-extraction-06"}
+{"id": "original-extraction-06-1", "options": [{"id": "courier"}, {"id": "pickup"}, {"id": "post"}, {"id": "unknown"}], "label": 0, "family": "extraction", "group_id": "original-extraction-06"}
+{"id": "original-adequacy-01-0", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "adequacy", "group_id": "original-adequacy-01"}
+{"id": "original-adequacy-01-1", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "adequacy", "group_id": "original-adequacy-01"}
+{"id": "original-adequacy-02-0", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "adequacy", "group_id": "original-adequacy-02"}
+{"id": "original-adequacy-02-1", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "adequacy", "group_id": "original-adequacy-02"}
+{"id": "original-adequacy-03-0", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "adequacy", "group_id": "original-adequacy-03"}
+{"id": "original-adequacy-03-1", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "adequacy", "group_id": "original-adequacy-03"}
+{"id": "original-adequacy-04-0", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "adequacy", "group_id": "original-adequacy-04"}
+{"id": "original-adequacy-04-1", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "adequacy", "group_id": "original-adequacy-04"}
+{"id": "original-adequacy-05-0", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "adequacy", "group_id": "original-adequacy-05"}
+{"id": "original-adequacy-05-1", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "adequacy", "group_id": "original-adequacy-05"}
+{"id": "original-adequacy-06-0", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "adequacy", "group_id": "original-adequacy-06"}
+{"id": "original-adequacy-06-1", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "adequacy", "group_id": "original-adequacy-06"}
+{"id": "original-routing-01-0", "options": [{"id": "coding"}, {"id": "coding_agent"}, {"id": "document"}, {"id": "general"}, {"id": "math"}, {"id": "tools"}], "label": 4, "family": "routing", "group_id": "original-routing-01"}
+{"id": "original-routing-01-1", "options": [{"id": "coding"}, {"id": "coding_agent"}, {"id": "document"}, {"id": "general"}, {"id": "math"}, {"id": "tools"}], "label": 4, "family": "routing", "group_id": "original-routing-01"}
+{"id": "original-routing-02-0", "options": [{"id": "coding"}, {"id": "coding_agent"}, {"id": "document"}, {"id": "general"}, {"id": "math"}, {"id": "tools"}], "label": 0, "family": "routing", "group_id": "original-routing-02"}
+{"id": "original-routing-02-1", "options": [{"id": "coding"}, {"id": "coding_agent"}, {"id": "document"}, {"id": "general"}, {"id": "math"}, {"id": "tools"}], "label": 0, "family": "routing", "group_id": "original-routing-02"}
+{"id": "original-routing-03-0", "options": [{"id": "coding"}, {"id": "coding_agent"}, {"id": "document"}, {"id": "general"}, {"id": "math"}, {"id": "tools"}], "label": 1, "family": "routing", "group_id": "original-routing-03"}
+{"id": "original-routing-03-1", "options": [{"id": "coding"}, {"id": "coding_agent"}, {"id": "document"}, {"id": "general"}, {"id": "math"}, {"id": "tools"}], "label": 1, "family": "routing", "group_id": "original-routing-03"}
+{"id": "original-routing-04-0", "options": [{"id": "coding"}, {"id": "coding_agent"}, {"id": "document"}, {"id": "general"}, {"id": "math"}, {"id": "tools"}], "label": 2, "family": "routing", "group_id": "original-routing-04"}
+{"id": "original-routing-04-1", "options": [{"id": "coding"}, {"id": "coding_agent"}, {"id": "document"}, {"id": "general"}, {"id": "math"}, {"id": "tools"}], "label": 2, "family": "routing", "group_id": "original-routing-04"}
+{"id": "original-routing-05-0", "options": [{"id": "coding"}, {"id": "coding_agent"}, {"id": "document"}, {"id": "general"}, {"id": "math"}, {"id": "tools"}], "label": 5, "family": "routing", "group_id": "original-routing-05"}
+{"id": "original-routing-05-1", "options": [{"id": "coding"}, {"id": "coding_agent"}, {"id": "document"}, {"id": "general"}, {"id": "math"}, {"id": "tools"}], "label": 5, "family": "routing", "group_id": "original-routing-05"}
+{"id": "original-routing-06-0", "options": [{"id": "coding"}, {"id": "coding_agent"}, {"id": "document"}, {"id": "general"}, {"id": "math"}, {"id": "tools"}], "label": 3, "family": "routing", "group_id": "original-routing-06"}
+{"id": "original-routing-06-1", "options": [{"id": "coding"}, {"id": "coding_agent"}, {"id": "document"}, {"id": "general"}, {"id": "math"}, {"id": "tools"}], "label": 3, "family": "routing", "group_id": "original-routing-06"}
+{"id": "hard-opus-a-long_policy-01", "options": [{"id": "deny_repeated_seepage"}, {"id": "deny_vacancy_exclusion"}, {"id": "pay_full_estimate_less_deductible"}, {"id": "pay_subject_to_10000_sublimit"}, {"id": "pay_subject_to_15000_sublimit"}], "label": 4, "family": "long_policy", "group_id": "hard-opus-a-long_policy-01"}
+{"id": "hard-opus-a-long_policy-04", "options": [{"id": "budget_holder"}, {"id": "cfo"}, {"id": "department_head"}, {"id": "executive_committee"}, {"id": "vp_and_finance_director"}], "label": 1, "family": "long_policy", "group_id": "hard-opus-a-long_policy-04"}
+{"id": "hard-opus-a-long_policy-08", "options": [{"id": "full_repair_no_charge"}, {"id": "not_covered"}, {"id": "parts_covered_labour_charged"}, {"id": "pro_rata_replacement_credit"}], "label": 2, "family": "long_policy", "group_id": "hard-opus-a-long_policy-08"}
+{"id": "hard-opus-a-long_policy-09", "options": [{"id": "license_exception_lvs"}, {"id": "license_required"}, {"id": "no_license_required"}, {"id": "shipment_prohibited"}], "label": 1, "family": "long_policy", "group_id": "hard-opus-a-long_policy-09"}
+{"id": "hard-opus-a-long_policy-11", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "long_policy", "group_id": "hard-opus-a-long_policy-11"}
+{"id": "hard-opus-a-long_policy-13", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "long_policy", "group_id": "hard-opus-a-long_policy-13"}
+{"id": "hard-opus-a-long_policy-17", "options": [{"id": "database_oncall"}, {"id": "no_page_ticket_only"}, {"id": "platform_oncall"}, {"id": "security_incident_response"}, {"id": "vendor_support"}], "label": 0, "family": "long_policy", "group_id": "hard-opus-a-long_policy-17"}
+{"id": "hard-opus-a-long_policy-19", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "long_policy", "group_id": "hard-opus-a-long_policy-19"}
+{"id": "hard-opus-a-probability-03", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "probability", "group_id": "hard-opus-a-probability-03"}
+{"id": "hard-opus-a-probability-04", "options": [{"id": "early"}, {"id": "late"}, {"id": "on_time"}], "label": 2, "family": "probability", "group_id": "hard-opus-a-probability-04"}
+{"id": "hard-opus-a-probability-07", "options": [{"id": "escalated"}, {"id": "reopened"}, {"id": "resolved_first_contact"}], "label": 0, "family": "probability", "group_id": "hard-opus-a-probability-07"}
+{"id": "hard-opus-a-probability-08", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "probability", "group_id": "hard-opus-a-probability-08"}
+{"id": "hard-opus-a-temporal_numeric-03", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "temporal_numeric", "group_id": "hard-opus-a-temporal_numeric-03"}
+{"id": "hard-opus-a-temporal_numeric-06", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "temporal_numeric", "group_id": "hard-opus-a-temporal_numeric-06"}
+{"id": "hard-opus-a-temporal_numeric-07", "options": [{"id": "sep_24"}, {"id": "sep_25"}, {"id": "sep_26"}, {"id": "sep_27"}, {"id": "sep_28"}], "label": 2, "family": "temporal_numeric", "group_id": "hard-opus-a-temporal_numeric-07"}
+{"id": "hard-opus-a-temporal_numeric-09", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "temporal_numeric", "group_id": "hard-opus-a-temporal_numeric-09"}
+{"id": "hard-opus-a-temporal_numeric-12", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}], "label": 1, "family": "temporal_numeric", "group_id": "hard-opus-a-temporal_numeric-12"}
+{"id": "hard-opus-b-ambiguous-02", "options": [{"id": "cannot_determine"}, {"id": "false_positive"}, {"id": "real_incident"}], "label": 2, "family": "ambiguous", "group_id": "hard-opus-b-ambiguous-02"}
+{"id": "hard-opus-b-ambiguous-03", "options": [{"id": "insufficient_information"}, {"id": "time_barred"}, {"id": "within_limitation"}], "label": 1, "family": "ambiguous", "group_id": "hard-opus-b-ambiguous-03"}
+{"id": "hard-opus-b-ambiguous-07", "options": [{"id": "insufficient_information"}, {"id": "over_limit"}, {"id": "within_policy"}], "label": 2, "family": "ambiguous", "group_id": "hard-opus-b-ambiguous-07"}
+{"id": "hard-opus-b-ambiguous-09", "options": [{"id": "compromised"}, {"id": "inconclusive"}, {"id": "legitimate"}], "label": 2, "family": "ambiguous", "group_id": "hard-opus-b-ambiguous-09"}
+{"id": "hard-opus-b-ambiguous-10", "options": [{"id": "ask_user_which_alex"}, {"id": "send_to_alex_moreno"}, {"id": "send_to_alexandra_lind"}], "label": 0, "family": "ambiguous", "group_id": "hard-opus-b-ambiguous-10"}
+{"id": "hard-opus-b-ambiguous-11", "options": [{"id": "cannot_determine"}, {"id": "grade_correct"}, {"id": "grade_should_be_higher"}], "label": 0, "family": "ambiguous", "group_id": "hard-opus-b-ambiguous-11"}
+{"id": "hard-opus-b-ambiguous-13", "options": [{"id": "cannot_determine"}, {"id": "charge_data_team"}, {"id": "charge_platform_team"}, {"id": "split_50_50"}], "label": 0, "family": "ambiguous", "group_id": "hard-opus-b-ambiguous-13"}
+{"id": "hard-opus-b-multi_hop-03", "options": [{"id": "tier1_team_lead"}, {"id": "tier2_department_head"}, {"id": "tier3_cfo"}, {"id": "tier4_board"}], "label": 2, "family": "multi_hop", "group_id": "hard-opus-b-multi_hop-03"}
+{"id": "hard-opus-b-multi_hop-04", "options": [{"id": "ana"}, {"id": "bjorn"}, {"id": "chen"}, {"id": "dmitri"}, {"id": "esra"}, {"id": "no_page_ticket_only"}], "label": 1, "family": "multi_hop", "group_id": "hard-opus-b-multi_hop-04"}
+{"id": "hard-opus-b-multi_hop-05", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}, {"id": "4"}], "label": 2, "family": "multi_hop", "group_id": "hard-opus-b-multi_hop-05"}
+{"id": "hard-opus-b-multi_hop-07", "options": [{"id": "credit_10_percent"}, {"id": "credit_20_percent"}, {"id": "credit_25_percent"}, {"id": "credit_50_percent"}, {"id": "credit_full_month"}, {"id": "no_credit"}], "label": 1, "family": "multi_hop", "group_id": "hard-opus-b-multi_hop-07"}
+{"id": "hard-opus-b-multi_hop-08", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "multi_hop", "group_id": "hard-opus-b-multi_hop-08"}
+{"id": "hard-opus-b-probability-01", "options": [{"id": "customer_wins"}, {"id": "customer_withdraws"}, {"id": "merchant_wins"}], "label": 2, "family": "probability", "group_id": "hard-opus-b-probability-01"}
+{"id": "hard-opus-b-probability-02", "options": [{"id": "bad_push"}, {"id": "database_hardware"}, {"id": "upstream_provider"}], "label": 2, "family": "probability", "group_id": "hard-opus-b-probability-02"}
+{"id": "hard-opus-b-probability-03", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "probability", "group_id": "hard-opus-b-probability-03"}
+{"id": "hard-opus-b-probability-04", "options": [{"id": "attended"}, {"id": "late_cancellation"}, {"id": "no_show"}], "label": 0, "family": "probability", "group_id": "hard-opus-b-probability-04"}
+{"id": "hard-opus-b-probability-06", "options": [{"id": "modified"}, {"id": "overturned"}, {"id": "upheld"}], "label": 2, "family": "probability", "group_id": "hard-opus-b-probability-06"}
+{"id": "hard-opus-b-tradeoff-01", "options": [{"id": "escalate_to_engineering"}, {"id": "escalate_to_security"}, {"id": "page_oncall"}, {"id": "process_refund"}, {"id": "send_kb_article"}], "label": 0, "family": "tradeoff", "group_id": "hard-opus-b-tradeoff-01"}
+{"id": "hard-opus-b-tradeoff-03", "options": [{"id": "order_a"}, {"id": "order_b"}, {"id": "order_c"}, {"id": "order_d"}], "label": 1, "family": "tradeoff", "group_id": "hard-opus-b-tradeoff-03"}
+{"id": "hard-opus-b-tradeoff-06", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "tradeoff", "group_id": "hard-opus-b-tradeoff-06"}
+{"id": "hard-opus-b-tradeoff-07", "options": [{"id": "out_of_scope"}, {"id": "p0_fix_24h"}, {"id": "p1_fix_7d"}, {"id": "p2_fix_30d"}, {"id": "p3_backlog"}], "label": 1, "family": "tradeoff", "group_id": "hard-opus-b-tradeoff-07"}
+{"id": "hard-opus-b-tradeoff-08", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "tradeoff", "group_id": "hard-opus-b-tradeoff-08"}
+{"id": "hard-opus-b-tradeoff-12", "options": [{"id": "deny_refund"}, {"id": "escalate_to_fraud_team"}, {"id": "offer_store_credit"}, {"id": "refund_now"}, {"id": "wait_for_inspection"}], "label": 3, "family": "tradeoff", "group_id": "hard-opus-b-tradeoff-12"}
+{"id": "hard-opus-c-long_policy-02", "options": [{"id": "erase_all"}, {"id": "erase_but_retain_transaction_records"}, {"id": "erase_marketing_only"}, {"id": "reject_unverified_request"}, {"id": "restrict_all_pending_legal_hold"}], "label": 1, "family": "long_policy", "group_id": "hard-opus-c-long_policy-02"}
+{"id": "hard-opus-c-long_policy-03", "options": [{"id": "eur_0"}, {"id": "eur_150"}, {"id": "eur_200"}, {"id": "eur_300"}, {"id": "eur_400"}, {"id": "eur_600"}], "label": 4, "family": "long_policy", "group_id": "hard-opus-c-long_policy-03"}
+{"id": "hard-opus-c-long_policy-04", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "long_policy", "group_id": "hard-opus-c-long_policy-04"}
+{"id": "hard-opus-c-long_policy-05", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}], "label": 1, "family": "long_policy", "group_id": "hard-opus-c-long_policy-05"}
+{"id": "hard-opus-c-long_policy-08", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}], "label": 1, "family": "long_policy", "group_id": "hard-opus-c-long_policy-08"}
+{"id": "hard-opus-c-long_policy-10", "options": [{"id": "credit_minus_restocking_fee"}, {"id": "full_credit"}, {"id": "reject_return"}, {"id": "repair_or_replace_only"}], "label": 0, "family": "long_policy", "group_id": "hard-opus-c-long_policy-10"}
+{"id": "hard-opus-c-long_policy-11", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "long_policy", "group_id": "hard-opus-c-long_policy-11"}
+{"id": "hard-opus-c-probability-03", "options": [{"id": "halvorsen_polymer"}, {"id": "kuznets_technik"}, {"id": "ortega_seal_works"}], "label": 1, "family": "probability", "group_id": "hard-opus-c-probability-03"}
+{"id": "hard-opus-c-temporal_numeric-02", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "temporal_numeric", "group_id": "hard-opus-c-temporal_numeric-02"}
+{"id": "hard-opus-c-temporal_numeric-03", "options": [{"id": "eur_617_00"}, {"id": "eur_688_00"}, {"id": "eur_692_00"}, {"id": "eur_693_90"}, {"id": "eur_812_00"}], "label": 2, "family": "temporal_numeric", "group_id": "hard-opus-c-temporal_numeric-03"}
+{"id": "hard-opus-c-temporal_numeric-04", "options": [{"id": "usd_2222_50"}, {"id": "usd_2303_01"}, {"id": "usd_2303_33"}, {"id": "usd_2335_00"}, {"id": "usd_2340_00"}], "label": 3, "family": "temporal_numeric", "group_id": "hard-opus-c-temporal_numeric-04"}
+{"id": "hard-opus-c-temporal_numeric-06", "options": [{"id": "none_declined"}, {"id": "sep_15_office_chair"}, {"id": "sep_16_taxi"}, {"id": "sep_17_parking"}, {"id": "sep_18_book_set"}, {"id": "sep_21_client_dinner"}], "label": 4, "family": "temporal_numeric", "group_id": "hard-opus-c-temporal_numeric-06"}
+{"id": "hard-opus-c-temporal_numeric-08", "options": [{"id": "eur_497_40"}, {"id": "eur_498_81"}, {"id": "eur_506_06"}, {"id": "eur_513_69"}, {"id": "eur_532_01"}], "label": 1, "family": "temporal_numeric", "group_id": "hard-opus-c-temporal_numeric-08"}
+{"id": "hard-opus-c-temporal_numeric-12", "options": [{"id": "covered"}, {"id": "expired_24_month_term"}, {"id": "expired_30_month_cap"}], "label": 2, "family": "temporal_numeric", "group_id": "hard-opus-c-temporal_numeric-12"}
+{"id": "hard-sol-a-adversarial-01", "options": [{"id": "deny_inactive_user"}, {"id": "deny_missing_approval"}, {"id": "grant_access"}, {"id": "grant_owner_exception"}], "label": 1, "family": "adversarial", "group_id": "hard-sol-a-adversarial-01"}
+{"id": "hard-sol-a-adversarial-06", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "adversarial", "group_id": "hard-sol-a-adversarial-06"}
+{"id": "hard-sol-a-adversarial-07", "options": [{"id": "delete_now"}, {"id": "needs_signature_review"}, {"id": "retain_indefinitely"}, {"id": "retain_until_2031"}], "label": 3, "family": "adversarial", "group_id": "hard-sol-a-adversarial-07"}
+{"id": "hard-sol-a-adversarial-08", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "adversarial", "group_id": "hard-sol-a-adversarial-08"}
+{"id": "hard-sol-a-adversarial-09", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}], "label": 2, "family": "adversarial", "group_id": "hard-sol-a-adversarial-09"}
+{"id": "hard-sol-a-adversarial-11", "options": [{"id": "ethics_review"}, {"id": "major_grants"}, {"id": "manual_hold"}, {"id": "standard_research"}], "label": 3, "family": "adversarial", "group_id": "hard-sol-a-adversarial-11"}
+{"id": "hard-sol-a-multi_hop-01", "options": [{"id": "accept_s2_dusk"}, {"id": "reject_cutoff"}, {"id": "reject_tier"}, {"id": "reroute_s3"}], "label": 0, "family": "multi_hop", "group_id": "hard-sol-a-multi_hop-01"}
+{"id": "hard-sol-a-multi_hop-02", "options": [{"id": "executive_bridge"}, {"id": "heron_q2"}, {"id": "insufficient_information"}, {"id": "security_primary"}], "label": 3, "family": "multi_hop", "group_id": "hard-sol-a-multi_hop-02"}
+{"id": "hard-sol-a-multi_hop-05", "options": [{"id": "pay_manager_approved"}, {"id": "reject_category"}, {"id": "require_director"}, {"id": "require_finance_board"}], "label": 2, "family": "multi_hop", "group_id": "hard-sol-a-multi_hop-05"}
+{"id": "hard-sol-a-multi_hop-07", "options": [{"id": "admit"}, {"id": "deny_prerequisite"}, {"id": "deny_score"}, {"id": "manual_equivalency"}], "label": 0, "family": "multi_hop", "group_id": "hard-sol-a-multi_hop-07"}
+{"id": "hard-sol-a-multi_hop-08", "options": [{"id": "central_engineering"}, {"id": "insufficient_log"}, {"id": "local_maintenance"}, {"id": "safety_shutdown"}], "label": 0, "family": "multi_hop", "group_id": "hard-sol-a-multi_hop-08"}
+{"id": "hard-sol-a-multi_hop-09", "options": [{"id": "confirm_l3"}, {"id": "reject_capacity"}, {"id": "require_steward"}, {"id": "switch_l4"}], "label": 2, "family": "multi_hop", "group_id": "hard-sol-a-multi_hop-09"}
+{"id": "hard-sol-a-multi_hop-10", "options": [{"id": "approve_45_days"}, {"id": "deny_sensitive"}, {"id": "needs_field_review"}, {"id": "reduce_to_30_days"}], "label": 0, "family": "multi_hop", "group_id": "hard-sol-a-multi_hop-10"}
+{"id": "hard-sol-a-multi_hop-12", "options": [{"id": "covered_recurrence"}, {"id": "expired"}, {"id": "needs_authentication"}, {"id": "wrong_issue_class"}], "label": 2, "family": "multi_hop", "group_id": "hard-sol-a-multi_hop-12"}
+{"id": "hard-sol-a-trap-02", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "trap", "group_id": "hard-sol-a-trap-02"}
+{"id": "hard-sol-a-trap-04", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "trap", "group_id": "hard-sol-a-trap-04"}
+{"id": "hard-sol-a-trap-05", "options": [{"id": "0"}, {"id": "1"}, {"id": "2"}, {"id": "3"}], "label": 0, "family": "trap", "group_id": "hard-sol-a-trap-05"}
+{"id": "hard-sol-a-trap-06", "options": [{"id": "await_internal_metrics"}, {"id": "close_agent_verified"}, {"id": "close_confirmed"}, {"id": "keep_open_unresolved"}], "label": 3, "family": "trap", "group_id": "hard-sol-a-trap-06"}
+{"id": "hard-sol-a-trap-08", "options": [{"id": "canceled"}, {"id": "indeterminate"}, {"id": "late"}, {"id": "on_time"}], "label": 2, "family": "trap", "group_id": "hard-sol-a-trap-08"}
+{"id": "hard-sol-a-trap-10", "options": [{"id": "blocked_failed_test"}, {"id": "blocked_second_review"}, {"id": "ready_one_review"}, {"id": "ready_two_reviews"}], "label": 1, "family": "trap", "group_id": "hard-sol-a-trap-10"}
+{"id": "hard-sol-a-trap-13", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "trap", "group_id": "hard-sol-a-trap-13"}
+{"id": "hard-sol-a-trap-15", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "trap", "group_id": "hard-sol-a-trap-15"}
+{"id": "hard-sol-b-judge_hard-01", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "judge_hard", "group_id": "hard-sol-b-judge_hard-01"}
+{"id": "hard-sol-b-judge_hard-02", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "judge_hard", "group_id": "hard-sol-b-judge_hard-02"}
+{"id": "hard-sol-b-judge_hard-05", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "judge_hard", "group_id": "hard-sol-b-judge_hard-05"}
+{"id": "hard-sol-b-judge_hard-08", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "judge_hard", "group_id": "hard-sol-b-judge_hard-08"}
+{"id": "hard-sol-b-judge_hard-10", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "judge_hard", "group_id": "hard-sol-b-judge_hard-10"}
+{"id": "hard-sol-b-judge_hard-14", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "judge_hard", "group_id": "hard-sol-b-judge_hard-14"}
+{"id": "hard-sol-b-judge_hard-15", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "judge_hard", "group_id": "hard-sol-b-judge_hard-15"}
+{"id": "hard-sol-b-judge_hard-18", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "judge_hard", "group_id": "hard-sol-b-judge_hard-18"}
+{"id": "hard-sol-b-long_policy-01", "options": [{"id": "approve_all"}, {"id": "approve_lodging_only"}, {"id": "approve_meals_only"}, {"id": "reject_entire_claim"}], "label": 3, "family": "long_policy", "group_id": "hard-sol-b-long_policy-01"}
+{"id": "hard-sol-b-long_policy-02", "options": [{"id": "analytics_owner_only"}, {"id": "deny_current_export"}, {"id": "privacy_and_security"}, {"id": "privacy_only"}], "label": 1, "family": "long_policy", "group_id": "hard-sol-b-long_policy-02"}
+{"id": "hard-sol-b-long_policy-05", "options": [{"id": "delete_everything"}, {"id": "delete_nothing"}, {"id": "delete_only_profile"}, {"id": "delete_profile_omar_april_and_table"}], "label": 3, "family": "long_policy", "group_id": "hard-sol-b-long_policy-05"}
+{"id": "hard-sol-b-long_policy-06", "options": [{"id": "east_ward"}, {"id": "harbor_neighbors"}, {"id": "no_award"}, {"id": "river_arts"}], "label": 0, "family": "long_policy", "group_id": "hard-sol-b-long_policy-06"}
+{"id": "hard-sol-b-routing_hard-01", "options": [{"id": "data_pipeline"}, {"id": "desktop_support"}, {"id": "finance_review"}, {"id": "office_file_repair"}, {"id": "spreadsheet_formula"}], "label": 3, "family": "routing_hard", "group_id": "hard-sol-b-routing_hard-01"}
+{"id": "hard-sol-b-routing_hard-02", "options": [{"id": "customer_support"}, {"id": "fraud_review"}, {"id": "ledger_reconciliation"}, {"id": "mobile_app"}, {"id": "payment_disputes"}], "label": 2, "family": "routing_hard", "group_id": "hard-sol-b-routing_hard-02"}
+{"id": "hard-sol-b-routing_hard-03", "options": [{"id": "api_platform"}, {"id": "authoritative_dns"}, {"id": "endpoint_devices"}, {"id": "network_dns"}, {"id": "tls_certificates"}], "label": 3, "family": "routing_hard", "group_id": "hard-sol-b-routing_hard-03"}
+{"id": "hard-sol-b-routing_hard-07", "options": [{"id": "ci_infrastructure"}, {"id": "code_signing"}, {"id": "endpoint_security"}, {"id": "macos_runtime"}, {"id": "release_notarization"}], "label": 4, "family": "routing_hard", "group_id": "hard-sol-b-routing_hard-07"}
+{"id": "hard-sol-b-routing_hard-09", "options": [{"id": "git_client"}, {"id": "identity_login"}, {"id": "repository_admin"}, {"id": "source_access"}, {"id": "vpn_network"}], "label": 3, "family": "routing_hard", "group_id": "hard-sol-b-routing_hard-09"}
+{"id": "hard-sol-b-temporal_numeric-01", "options": [{"id": "before_open"}, {"id": "late_by_2h_or_more"}, {"id": "late_by_under_2h"}, {"id": "within_window"}], "label": 2, "family": "temporal_numeric", "group_id": "hard-sol-b-temporal_numeric-01"}
+{"id": "hard-sol-b-temporal_numeric-02", "options": [{"id": "at_least_100gb_below"}, {"id": "exactly_equal"}, {"id": "over_limit"}, {"id": "under_100gb_below"}], "label": 2, "family": "temporal_numeric", "group_id": "hard-sol-b-temporal_numeric-02"}
+{"id": "hard-sol-b-temporal_numeric-03", "options": [{"id": "12_credits"}, {"id": "15_credits"}, {"id": "6_credits"}, {"id": "9_credits"}], "label": 3, "family": "temporal_numeric", "group_id": "hard-sol-b-temporal_numeric-03"}
+{"id": "hard-sol-b-temporal_numeric-04", "options": [{"id": "clear_fail"}, {"id": "narrow_fail"}, {"id": "pass"}], "label": 2, "family": "temporal_numeric", "group_id": "hard-sol-b-temporal_numeric-04"}
+{"id": "hard-sol-c-judge_hard-03", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "judge_hard", "group_id": "hard-sol-c-judge_hard-03"}
+{"id": "hard-sol-c-judge_hard-05", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "judge_hard", "group_id": "hard-sol-c-judge_hard-05"}
+{"id": "hard-sol-c-judge_hard-07", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "judge_hard", "group_id": "hard-sol-c-judge_hard-07"}
+{"id": "hard-sol-c-judge_hard-08", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "judge_hard", "group_id": "hard-sol-c-judge_hard-08"}
+{"id": "hard-sol-c-judge_hard-09", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "judge_hard", "group_id": "hard-sol-c-judge_hard-09"}
+{"id": "hard-sol-c-judge_hard-10", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "judge_hard", "group_id": "hard-sol-c-judge_hard-10"}
+{"id": "hard-sol-c-judge_hard-11", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "judge_hard", "group_id": "hard-sol-c-judge_hard-11"}
+{"id": "hard-sol-c-judge_hard-13", "options": [{"id": "true"}, {"id": "false"}], "label": 1, "family": "judge_hard", "group_id": "hard-sol-c-judge_hard-13"}
+{"id": "hard-sol-c-judge_hard-15", "options": [{"id": "true"}, {"id": "false"}], "label": 0, "family": "judge_hard", "group_id": "hard-sol-c-judge_hard-15"}
+{"id": "hard-sol-c-multi_hop-07", "options": [{"id": "partial_release"}, {"id": "programme_review"}, {"id": "reject_draw"}, {"id": "release_draw"}], "label": 1, "family": "multi_hop", "group_id": "hard-sol-c-multi_hop-07"}
+{"id": "hard-sol-c-multi_hop-09", "options": [{"id": "bus_substitution"}, {"id": "call_fen_cross"}, {"id": "pass_fen_cross"}, {"id": "terminate_oakmere"}], "label": 0, "family": "multi_hop", "group_id": "hard-sol-c-multi_hop-09"}
+{"id": "hard-sol-c-multi_hop-11", "options": [{"id": "adjuster_referral"}, {"id": "coverage_confirmed"}, {"id": "coverage_excluded"}, {"id": "documentation_needed"}], "label": 2, "family": "multi_hop", "group_id": "hard-sol-c-multi_hop-11"}
+{"id": "hard-sol-c-multi_hop-12", "options": [{"id": "conservation_hold"}, {"id": "deny_request"}, {"id": "digital_copy_only"}, {"id": "supervised_delivery"}], "label": 0, "family": "multi_hop", "group_id": "hard-sol-c-multi_hop-12"}
+{"id": "hard-sol-c-multi_hop-13", "options": [{"id": "engineering_review"}, {"id": "normal_release"}, {"id": "rework"}, {"id": "scrap_lot"}], "label": 1, "family": "multi_hop", "group_id": "hard-sol-c-multi_hop-13"}

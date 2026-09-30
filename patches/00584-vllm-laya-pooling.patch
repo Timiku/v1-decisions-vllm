@@ -1,0 +1,1148 @@
+diff --git a/docs/models/pooling_models/token_classify.md b/docs/models/pooling_models/token_classify.md
+--- a/docs/models/pooling_models/token_classify.md
++++ b/docs/models/pooling_models/token_classify.md
+@@ -35,6 +35,12 @@
+ 
+ Offline: [examples/pooling/token_classify/forced_alignment_offline.py](../../../examples/pooling/token_classify/forced_alignment_offline.py)
+ 
++### Typed decisions (Laya)
++
++[Laya](https://github.com/NandhaKishorM/laya) answers `choice`, `score` and `noul` (yes/no) questions about a state in a single forward pass, without generating text. Each question is one prompt, and the output has one row per option: the calibrated option probability followed by the action head's distribution.
++
++Laya checkpoints must be converted before serving, see [examples/pooling/token_classify/laya/README.md](../../../examples/pooling/token_classify/laya/README.md). The [structured decisions server](../../../examples/features/structured_diffusion/README.md#laya) serves the `/v1/systemone` API in front of it.
++
+ ### Sparse retrieval (lexical matching)
+ 
+ The BAAI/bge-m3 model leverages token classification for sparse retrieval. For more information, see [this page](specific_models.md#baaibge-m3).
+@@ -44,6 +50,7 @@
+ | Architecture | Models | Example HF Models | [LoRA](../../features/lora.md) | [PP](../../serving/parallelism_scaling.md) |
+ | ------------ | ------ | ----------------- | --------------------------- | --------------------------------------- |
+ | `BertForTokenClassification` | bert-based | `boltuix/NeuroBERT-NER` (see note), etc. | | |
++| `LayaForDecision` | Laya typed decisions | `convaiinnovations/laya`, `convaiinnovations/laya-multilingual` (converted) | | |
+ | `ModernBertForTokenClassification` | ModernBERT-based | `disham993/electrical-ner-ModernBERT-base` | | |
+ | `OpenAIPrivacyFilterForTokenClassification` | gpt-oss-based encoder | `openai/privacy-filter` | | |
+ | `Qwen3ForTokenClassification`<sup>C</sup> | Qwen3-based | `bd2lcco/Qwen3-0.6B-finetuned` | | |
+diff --git a/examples/features/structured_diffusion/README.md b/examples/features/structured_diffusion/README.md
+--- a/examples/features/structured_diffusion/README.md
++++ b/examples/features/structured_diffusion/README.md
+@@ -74,3 +74,21 @@
+ of a decision share one thought. `diagnostics.thought` returns the text, its
+ length in tokens, whether the model closed the channel itself and the
+ generation time.
++
++## Laya
++
++`--backend laya` serves the same `/v1/systemone` and `/v1/chat/completions`
++routes and schema from a [Laya](https://github.com/NandhaKishorM/laya)
++encoder, which vLLM runs as a `token_classify` model. Convert and serve the
++checkpoint as in [examples/pooling/token_classify/laya](../../pooling/token_classify/laya/README.md),
++then:
++
++```bash
++python examples/features/structured_diffusion/structured_server.py --backend laya \
++    --upstream http://127.0.0.1:8000 --model laya --tokenizer ./laya-vllm
++```
++
++Each question is one deterministic forward pass, so there is no canvas and
++`samples` has no effect. `depends_on`, `ask_if`, `ask` and `instructions`
++work; earlier answers are restated at the end of the state. `think`, images
++and `/v1/raw/chat/completions` need a generative model and are rejected.
+diff --git a/examples/features/structured_diffusion/structured_server.py b/examples/features/structured_diffusion/structured_server.py
+--- a/examples/features/structured_diffusion/structured_server.py
++++ b/examples/features/structured_diffusion/structured_server.py
+@@ -76,24 +76,37 @@
+ then run this in front of it:
+   python structured_server.py --upstream http://127.0.0.1:8000 \
+       --tokenizer google/diffusiongemma-26B-A4B-it --canvas 64 --port 8011
++
++--backend laya serves the same routes from a Laya encoder served as a
++token_classify model (see examples/pooling/token_classify/laya). Each
++question is its own forward pass, so there is no canvas or chunking, and a
++read is deterministic, so "samples" has no effect. depends_on, ask_if, ask
++and instructions work, with earlier answers restated at the end of the
++state. think, images and /v1/raw/chat/completions are not available:
++  vllm serve ./laya-vllm --served-model-name laya
++  python structured_server.py --backend laya --upstream http://127.0.0.1:8000 \
++      --model laya --tokenizer ./laya-vllm --port 8011
+ """
+ 
+ import argparse
++import importlib
+ import json
+ import math
+ import os
+ import random
+ import ssl
+ import subprocess
++import sys
+ import threading
+ import time
+ import urllib.error
+ import urllib.request
+ from concurrent.futures import ThreadPoolExecutor
+ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
++from pathlib import Path
+ 
+ import pybase64 as base64
+-from transformers import AutoTokenizer
++from transformers import AutoConfig, AutoTokenizer
+ 
+ ARGS = None
+ TOK = None
+@@ -114,6 +127,9 @@
+ SCAFFOLD = None
+ THOUGHT_OPEN = None
+ THOUGHT_CLOSE = None
++# --backend laya: the checkpoint's laya_config and its prompt builder
++LAYA = None
++laya_prompts = None
+ 
+ 
+ # ----------------------------------------------------------------------------
+@@ -725,6 +741,16 @@
+     return a["label"] if q["type"] == "noul" else a.get("choice", a.get("level"))
+ 
+ 
++def skip_reason(q, by_id, answered):
++    """The first ask_if condition of q that the answers so far fail, or
++    None when q is asked."""
++    for dep, vals in q["ask_if"].items():
++        was = answer_name(by_id[dep], answered.get(dep))
++        if was not in vals:
++            return {"because": dep, "was": was, "wanted": vals}
++    return None
++
++
+ def decide(schema, state_content, seed):
+     """One decision. Questions run in stages by their dependencies. A stage
+     is one joint read, chunked by the canvas, with a question marked alone
+@@ -813,21 +839,9 @@
+     for level in levels:
+         asked = []
+         for q in level:
+-            failed = next(
+-                (
+-                    (dep, vals)
+-                    for dep, vals in q["ask_if"].items()
+-                    if answer_name(by_id[dep], answered.get(dep)) not in vals
+-                ),
+-                None,
+-            )
+-            if failed:
++            if reason := skip_reason(q, by_id, answered):
+                 answered[q["id"]] = None
+-                skipped[q["id"]] = {
+-                    "because": failed[0],
+-                    "was": answer_name(by_id[failed[0]], answered.get(failed[0])),
+-                    "wanted": failed[1],
+-                }
++                skipped[q["id"]] = reason
+                 continue
+             asked.append(q)
+         if not asked:
+@@ -907,6 +921,25 @@
+     ) + extra_rows
+ 
+ 
++def answer_from(q, probs):
++    """An answer from label probabilities in the question's choice order."""
++    top = max(range(len(probs)), key=lambda i: probs[i])
++    a = {
++        "type": q["type"],
++        "label": q["labels"][top],
++        "confidence": probs[top],
++        "probabilities": {c[0]: m for c, m in zip(q["choices"], probs)},
++    }
++    if q["type"] == "noul":
++        a["noul"] = probs[0]
++    elif q["type"] == "choice":
++        a["choice"] = q["choices"][top][0]
++    else:
++        a["score"] = sum((i + 1) * m for i, m in enumerate(probs))
++        a["level"] = q["choices"][top][0]
++    return a
++
++
+ def decide_group(schema, sys_text, state_content, seed, prefix=None, lead=""):
+     started = time.time()
+     thought = None
+@@ -990,20 +1023,8 @@
+     for qi, q in enumerate(schema["questions"]):
+         per = [r[qi]["probs"] for r in reads]
+         mean = [sum(p[i] for p in per) / n for i in range(len(q["labels"]))]
+-        top = max(range(len(mean)), key=lambda i: mean[i])
+-        a = {
+-            "type": q["type"],
+-            "label": q["labels"][top],
+-            "confidence": mean[top],
+-            "probabilities": {c[0]: m for c, m in zip(q["choices"], mean)},
+-        }
+-        if q["type"] == "noul":
+-            a["noul"] = mean[0]
+-        elif q["type"] == "choice":
+-            a["choice"] = q["choices"][top][0]
+-        else:
+-            a["score"] = sum((i + 1) * m for i, m in enumerate(mean))
+-            a["level"] = q["choices"][top][0]
++        a = answer_from(q, mean)
++        top = q["labels"].index(a["label"])
+         if n > 1:
+             var = sum((p[top] - mean[top]) ** 2 for p in per) / (n - 1)
+             a["stderr"] = (var / n) ** 0.5
+@@ -1051,6 +1072,125 @@
+ 
+ 
+ # ----------------------------------------------------------------------------
++# Laya backend
++# ----------------------------------------------------------------------------
++
++
++def upstream_pooling(body, timeout=600):
++    req = urllib.request.Request(
++        ARGS.upstream.rstrip("/") + "/pooling",
++        data=json.dumps(body).encode(),
++        headers={"content-type": "application/json"},
++    )
++    return json.load(urllib.request.urlopen(req, timeout=timeout))
++
++
++def laya_question(q):
++    if q["type"] == "noul":
++        crit = {"true": q["choices"][0][1], "false": q["choices"][1][1]}
++    elif q["type"] == "choice":
++        crit = dict(q["choices"])
++    else:
++        crit = [name for name, _ in q["choices"]]
++    return {"t": q["type"], "ins": q["instructions"], "crit": crit, "labels": None}
++
++
++def laya_state(state, instructions, earlier):
++    """The state with the schema's context ahead of it and the answers so far
++    after it. A conversation keeps its list shape, so that truncation still
++    drops its oldest turns first."""
++    if instructions:
++        state = (
++            [str(instructions)] + state
++            if isinstance(state, list)
++            else f"{instructions}\n\n{laya_prompts.serialize_state(state)}"
++        )
++    if earlier:
++        answers = "Answers so far:\n" + "\n".join(earlier)
++        state = (
++            state + [answers]
++            if isinstance(state, list)
++            else f"{laya_prompts.serialize_state(state)}\n\n{answers}"
++        )
++    return state
++
++
++def laya_read(qs, state):
++    """Every question of ``qs`` as its own Laya prompt, in one /pooling call.
++    -> (label probabilities per question in choice order, prompt tokens)"""
++    prompts = []
++    for q in qs:
++        try:
++            prompts.append(
++                laya_prompts.build_prompt(
++                    TOK, state, laya_question(q), LAYA["max_len"], LAYA["head_max_len"]
++                )
++            )
++        except ValueError as e:
++            raise SchemaError(f"question {q['id']!r}: {e}") from e
++    out = upstream_pooling(
++        {"model": ARGS.model, "task": "token_classify", "input": prompts}
++    )
++    probs = []
++    for q, d in zip(qs, sorted(out["data"], key=lambda d: d["index"])):
++        p = [row[0] for row in d["data"]]
++        # Laya lists noul options as false, true; the schema as yes, no.
++        probs.append(p[::-1] if q["type"] == "noul" else p)
++    return probs, sum(len(p) for p in prompts)
++
++
++def decide_laya(schema, state):
++    """One decision on a Laya encoder. Each question is one forward pass of
++    its own. A stage runs after the answers it depends on, which are restated
++    at the end of the state. Laya is deterministic, so every question is read
++    once whatever "samples" asks."""
++    started = time.time()
++    if schema["think"]:
++        raise SchemaError("think: Laya does not generate text")
++    qs = [
++        q
++        for q in schema["questions"]
++        if not schema.get("ask") or q["id"] in schema["ask"]
++    ]
++    by_id = {q["id"]: q for q in schema["questions"]}
++    answered, earlier, stages, skipped, diag_q = {}, [], [], {}, {}
++    prompt_tokens = 0
++    for level in schedule(qs):
++        asked = []
++        for q in level:
++            if reason := skip_reason(q, by_id, answered):
++                answered[q["id"]] = None
++                skipped[q["id"]] = reason
++            else:
++                asked.append(q)
++        if not asked:
++            continue
++        stages.append([q["id"] for q in asked])
++        probs, tokens = laya_read(
++            asked, laya_state(state, schema["instructions"], earlier)
++        )
++        prompt_tokens += tokens
++        for q, p in zip(asked, probs):
++            answered[q["id"]] = answer_from(q, p)
++            diag_q[q["id"]] = {"entropy": [-sum(x * math.log(x) for x in p if x > 0)]}
++        earlier.extend(f"{q['id']}: {answer_name(q, answered[q['id']])}" for q in asked)
++    diagnostics = {
++        "stages": stages,
++        "skipped": skipped,
++        "conditioning": "restated" if len(stages) > 1 else None,
++        "samples": {"n": 1},
++        "timing": {"total_ms": (time.time() - started) * 1e3, "reads": len(stages)},
++        "prompt_tokens": prompt_tokens,
++        "questions": diag_q,
++        "engine": "vllm-laya",
++    }
++    return {
++        "answers": {q["id"]: answered.get(q["id"]) for q in qs},
++        "diagnostics": diagnostics,
++    }, 0
++
++
++# ----------------------------------------------------------------------------
+ # Jev's contract
+ # ----------------------------------------------------------------------------
+ 
+@@ -1261,6 +1401,10 @@
+                 },
+             )
+         if self.path == "/v1/raw/chat/completions":
++            if LAYA is not None:
++                return self._json(
++                    404, {"error": {"message": "Laya does not generate text"}}
++                )
+             return self._raw_chat()
+         try:
+             req, images = self._read_request()
+@@ -1304,6 +1448,8 @@
+     def _decide(self, schema, state, seed):
+         """-> (status, body) with the error body already shaped."""
+         try:
++            if LAYA is not None:
++                return 200, decide_laya(schema, state)
+             return 200, decide(schema, state, seed)
+         except SchemaError as e:
+             return 422, {"error": {"message": str(e), "type": "validation_error"}}
+@@ -1321,8 +1467,17 @@
+ 
+     def _systemone(self, req, images):
+         try:
+-            schema = jev_schema(req)
+-            state = jev_state(req, images + jev_images(req.get("images")))
++            images = images + jev_images(req.get("images"))
++            if LAYA is not None:
++                if images:
++                    raise SchemaError("images: Laya reads text only")
++                if req.get("state") is None:
++                    raise SchemaError("state: required")
++                # Laya serializes the state itself, keeping non-ASCII text
++                # and truncating a conversation from its oldest turn.
++                state = req["state"]
++            else:
++                state = jev_state(req, images)
+         except SchemaError as e:
+             return self._json(
+                 422, {"error": {"message": str(e), "type": "validation_error"}}
+@@ -1392,11 +1547,15 @@
+                 for p in content
+             )
+             if has_image:
++                if LAYA is not None:
++                    raise SchemaError("images: Laya reads text only")
+                 # image parts pass through to vLLM unchanged, with text parts as context
+                 state = content
+             else:
+                 state = message_text(msgs[1]).strip()
+-                json.loads(state)
++                parsed = json.loads(state)
++                if LAYA is not None:
++                    state = parsed
+         except SchemaError as e:
+             return self._json(
+                 400, {"error": {"message": str(e), "type": "invalid_request_error"}}
+@@ -1494,8 +1653,16 @@
+ 
+ 
+ def main():
+-    global ARGS, CANVAS_LEN, CANVAS_STEP
++    global ARGS, CANVAS_LEN, CANVAS_STEP, TOK, LAYA, laya_prompts
+     p = argparse.ArgumentParser()
++    p.add_argument(
++        "--backend",
++        choices=("diffusion", "laya"),
++        default="diffusion",
++        help="diffusion: DiffusionGemma canvas reads. laya: a Laya checkpoint "
++        "served as a token_classify model (--tokenizer is its converted "
++        "directory, see examples/pooling/token_classify/laya)",
++    )
+     p.add_argument("--upstream", default="http://127.0.0.1:8010")
+     p.add_argument("--model", default="dgemma")
+     p.add_argument("--tokenizer", default="/models/dgemma", help="HF id or local path")
+@@ -1525,7 +1692,15 @@
+     ARGS = p.parse_args()
+     CANVAS_LEN = ARGS.canvas
+     CANVAS_STEP = ARGS.canvas_step
+-    init_tokenizer(AutoTokenizer.from_pretrained(ARGS.tokenizer))
++    if ARGS.backend == "laya":
++        sys.path.insert(
++            0, str(Path(__file__).resolve().parents[2] / "pooling/token_classify/laya")
++        )
++        laya_prompts = importlib.import_module("laya_prompts")
++        TOK = AutoTokenizer.from_pretrained(ARGS.tokenizer)
++        LAYA = AutoConfig.from_pretrained(ARGS.tokenizer).laya_config
++    else:
++        init_tokenizer(AutoTokenizer.from_pretrained(ARGS.tokenizer))
+     if ARGS.tls_port:
+         serve_tls(ARGS.host, ARGS.tls_port, ARGS.cert_dir)
+         print(
+@@ -1534,7 +1709,7 @@
+         )
+     print(
+         f"structured server on {ARGS.host}:{ARGS.port} -> {ARGS.upstream} "
+-        f"(canvas {CANVAS_LEN})",
++        + ("(laya)" if LAYA is not None else f"(canvas {CANVAS_LEN})"),
+         flush=True,
+     )
+     ThreadingHTTPServer((ARGS.host, ARGS.port), Handler).serve_forever()
+diff --git a/tests/models/registry.py b/tests/models/registry.py
+--- a/tests/models/registry.py
++++ b/tests/models/registry.py
+@@ -717,6 +717,10 @@
+ 
+ _TOKEN_CLASSIFICATION_EXAMPLE_MODELS = {
+     "BertForTokenClassification": _HfExamplesInfo("boltuix/NeuroBERT-NER"),
++    # Needs examples/pooling/token_classify/laya/convert_checkpoint.py first
++    "LayaForDecision": _HfExamplesInfo(
++        "convaiinnovations/laya", is_available_online=False
++    ),
+     "ModernBertForTokenClassification": _HfExamplesInfo(
+         "disham993/electrical-ner-ModernBERT-base"
+     ),
+diff --git a/vllm/model_executor/models/laya.py b/vllm/model_executor/models/laya.py
+new file mode 100644
+--- /dev/null
++++ b/vllm/model_executor/models/laya.py
+@@ -0,0 +1,270 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""Laya typed-decision models (https://github.com/NandhaKishorM/laya).
++
++A ModernBERT encoder, pre-norm bidirectional transformer layers conditioned
++on the question type, and a scorer applied at each option's ``MASK`` marker. A request is one question rendered as::
++
++    [CLS] <type> question: <instructions> [SEP]  ``MASK`` opt0 ``MASK`` opt1 ...
++    [SEP] <state> [SEP]
++
++The ``token_classify`` output has one row per option marker: column 0 is the
++option probability (or logit with ``use_activation=False``) and the remaining
++columns are the action head's distribution, repeated on every row.
++"""
++
++import math
++from collections.abc import Iterable, Set
++
++import torch
++import torch.nn.functional as F
++from torch import nn
++
++from vllm.config import VllmConfig
++from vllm.model_executor.layers.attention import EncoderOnlyAttention
++from vllm.model_executor.layers.pooler import Pooler, PoolingParamsUpdate
++from vllm.model_executor.models.modernbert import ModernBertModel
++from vllm.sequence import IntermediateTensors
++from vllm.tasks import PoolingTask
++from vllm.utils.torch_utils import async_tensor_h2d
++from vllm.v1.outputs import PoolerOutput
++from vllm.v1.pool.metadata import PoolingMetadata
++
++from .interfaces_base import attn_type, default_pooling_type
++from .utils import AutoWeightsLoader, WeightsMapper
++
++QTYPES = ("choice", "score", "noul")
++# Laya refuses calibration temperatures outside this range, see
++# `laya.common.clamp_temperature`.
++TEMP_MIN = 0.5
++TEMP_MAX = 5.0
++
++
++def _clamp_temperature(t: object) -> float:
++    try:
++        t = float(t)  # type: ignore[arg-type]
++    except (TypeError, ValueError):
++        return 1.0
++    if not math.isfinite(t):
++        return 1.0
++    return min(TEMP_MAX, max(TEMP_MIN, t))
++
++
++def _temperature_bucket(qtype: int, k: int) -> str:
++    size = "2" if k <= 2 else "3-5" if k <= 5 else "6-10" if k <= 10 else "11+"
++    return f"{QTYPES[qtype]}:{size}"
++
++
++class LayaHeadSelfAttention(nn.Module):
++    """`nn.MultiheadAttention` without a mask, over each whole sequence."""
++
++    def __init__(self, hidden_size: int, num_heads: int, prefix: str = ""):
++        super().__init__()
++        self.hidden_size = hidden_size
++        self.head_dim = hidden_size // num_heads
++        self.in_proj = nn.Linear(hidden_size, 3 * hidden_size)
++        self.out_proj = nn.Linear(hidden_size, hidden_size)
++        self.attn = EncoderOnlyAttention(
++            num_heads,
++            self.head_dim,
++            self.head_dim**-0.5,
++            prefix=f"{prefix}.attn",
++        )
++
++    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
++        q, k, v = self.in_proj(hidden_states).split([self.hidden_size] * 3, dim=-1)
++        return self.out_proj(self.attn(q, k, v))
++
++
++class LayaHeadLayer(nn.Module):
++    """`nn.TransformerEncoderLayer(norm_first=True, activation="relu")`."""
++
++    def __init__(self, hidden_size: int, num_heads: int, prefix: str = ""):
++        super().__init__()
++        self.self_attn = LayaHeadSelfAttention(
++            hidden_size, num_heads, prefix=f"{prefix}.self_attn"
++        )
++        self.linear1 = nn.Linear(hidden_size, 4 * hidden_size)
++        self.linear2 = nn.Linear(4 * hidden_size, hidden_size)
++        self.norm1 = nn.LayerNorm(hidden_size)
++        self.norm2 = nn.LayerNorm(hidden_size)
++
++    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
++        hidden_states = hidden_states + self.self_attn(self.norm1(hidden_states))
++        ffn = self.linear2(torch.relu(self.linear1(self.norm2(hidden_states))))
++        return hidden_states + ffn
++
++
++class LayaDecisionPooler(Pooler):
++    """Scores each option marker and runs the action head on `[CLS]`."""
++
++    def __init__(self, vllm_config: VllmConfig, hidden_size: int, n_act: int):
++        super().__init__()
++        laya_config = vllm_config.model_config.hf_config.laya_config
++        self.mask_token_id: int = laya_config["mask_token_id"]
++        self.qtype_token_ids: list[int] = laya_config["qtype_token_ids"]
++        self.temperature = [
++            _clamp_temperature(t) for t in laya_config.get("temperature", [1.0] * 3)
++        ]
++        self.temperature_by_options = {
++            k: _clamp_temperature(v)
++            for k, v in laya_config.get("temperature_by_options", {}).items()
++        }
++
++        self.scorer = nn.Sequential(
++            nn.LayerNorm(hidden_size),
++            nn.Linear(hidden_size, hidden_size),
++            nn.GELU(),
++            nn.Linear(hidden_size, 1),
++        )
++        self.act_head = nn.Sequential(
++            nn.Linear(hidden_size + 4, 256), nn.GELU(), nn.Linear(256, n_act)
++        )
++
++    def get_supported_tasks(self) -> Set[PoolingTask]:
++        return {"token_classify"}
++
++    def get_pooling_updates(self, task: PoolingTask) -> PoolingParamsUpdate:
++        return PoolingParamsUpdate(requires_token_ids=True)
++
++    def _temperature(self, qtype: int, k: int) -> float:
++        return self.temperature_by_options.get(
++            _temperature_bucket(qtype, k), self.temperature[qtype]
++        )
++
++    def forward(
++        self,
++        hidden_states: torch.Tensor,
++        pooling_metadata: PoolingMetadata,
++    ) -> PoolerOutput:
++        cursor = pooling_metadata.get_pooling_cursor()
++        prompt_token_ids = pooling_metadata.get_prompt_token_ids_cpu()
++        device = hidden_states.device
++
++        # Malformed prompts (e.g. profiling dummies) must not raise here:
++        # they fall back to "choice" and give an empty output without markers.
++        marker_idx, temperatures, num_markers = [], [], []
++        for token_ids in prompt_token_ids:
++            idx = (token_ids == self.mask_token_id).nonzero(as_tuple=True)[0]
++            type_tok = int(token_ids[1]) if len(token_ids) > 1 else -1
++            qtype = (
++                self.qtype_token_ids.index(type_tok)
++                if type_tok in self.qtype_token_ids
++                else 0
++            )
++            marker_idx.append(idx)
++            temperatures.append(self._temperature(qtype, len(idx)))
++            num_markers.append(len(idx))
++
++        # Gather each request's markers from the flattened batch into
++        # a [num_reqs, max_markers] grid.
++        offsets = torch.cumsum(cursor.num_scheduled_tokens_cpu, 0)
++        offsets = torch.cat([offsets.new_zeros(1), offsets[:-1]])
++        num_markers_cpu = torch.tensor(num_markers)
++        mask_cpu = torch.arange(max(*num_markers, 1)) < num_markers_cpu[:, None]
++        grid_idx_cpu = torch.zeros(mask_cpu.shape, dtype=torch.long)
++        grid_idx_cpu[mask_cpu] = torch.cat([i + o for i, o in zip(marker_idx, offsets)])
++        use_activation_cpu = torch.tensor(
++            [p.use_activation is not False for p in pooling_metadata.pooling_params]
++        )
++
++        grid_idx = async_tensor_h2d(grid_idx_cpu, device)
++        mask = async_tensor_h2d(mask_cpu, device)
++        cls_idx = async_tensor_h2d(offsets, device)
++        temperature = async_tensor_h2d(torch.tensor(temperatures), device)
++        use_activation = async_tensor_h2d(use_activation_cpu, device)[:, None]
++
++        logits = self.scorer(hidden_states[grid_idx]).squeeze(-1).float()
++        logits = logits.masked_fill(~mask, -1e4)
++
++        p = torch.softmax(logits, -1)
++        k = mask.sum(-1).clamp(min=2).float()
++        ent = -(p * torch.log(p.clamp_min(1e-9))).sum(-1) / torch.log(k)
++        top2 = F.pad(p, (0, 1)).topk(2, -1).values
++        feats = torch.stack([top2[:, 0], top2[:, 0] - top2[:, 1], ent, k / 255.0], -1)
++        act_input = torch.cat([hidden_states[cls_idx].float(), feats], -1)
++        act_logits = self.act_head(act_input.to(hidden_states.dtype)).float()
++
++        scores = torch.where(
++            use_activation, torch.softmax(logits / temperature[:, None], -1), logits
++        )
++        act = torch.where(use_activation, torch.softmax(act_logits, -1), act_logits)
++        act = act[:, None].expand(-1, scores.shape[1], -1)
++        out = torch.cat([scores[..., None], act], -1)
++        return [out[i, :n] for i, n in enumerate(num_markers)]
++
++
++@attn_type("encoder_only")
++@default_pooling_type(tok_pooling_type="ALL")
++class LayaForDecision(nn.Module):
++    is_pooling_model = True
++
++    hf_to_vllm_mapper = WeightsMapper(
++        orig_to_new_prefix={
++            # Laya's Agent reads temperatures from the config, not this buffer.
++            "temperature": None,
++            "scorer.": "pooler.scorer.",
++            "act_head.": "pooler.act_head.",
++        },
++        orig_to_new_suffix={
++            ".in_proj_weight": ".in_proj.weight",
++            ".in_proj_bias": ".in_proj.bias",
++        },
++    )
++
++    def __init__(self, *, vllm_config: VllmConfig, prefix: str = ""):
++        super().__init__()
++        config = vllm_config.model_config.hf_config
++        laya_config = config.laya_config
++        hidden_size = config.hidden_size
++        num_heads = max(1, hidden_size // 64)
++
++        self.encoder = ModernBertModel(vllm_config=vllm_config, prefix="encoder")
++        self.type_emb = nn.Embedding(len(QTYPES), hidden_size)
++        self.head = nn.Module()
++        self.head.layers = nn.ModuleList(
++            LayaHeadLayer(hidden_size, num_heads, prefix=f"head.layers.{i}")
++            for i in range(laya_config["head_layers"])
++        )
++        self.register_buffer(
++            "qtype_token_ids",
++            torch.tensor(laya_config["qtype_token_ids"]),
++            persistent=False,
++        )
++        n_act = len(laya_config.get("act_costs", {})) + 1
++        self.pooler = LayaDecisionPooler(vllm_config, hidden_size, n_act)
++
++    def embed_input_ids(self, input_ids: torch.Tensor) -> torch.Tensor:
++        return self.encoder.embed_input_ids(input_ids)
++
++    def _question_types(
++        self, input_ids: torch.Tensor, positions: torch.Tensor
++    ) -> torch.Tensor:
++        """Per-token question type, read from the token after each `[CLS]`."""
++        idx = torch.arange(input_ids.shape[0], device=input_ids.device)
++        seq_start = torch.cummax(torch.where(positions == 0, idx, 0), 0).values
++        type_tok = input_ids[(seq_start + 1).clamp(max=input_ids.shape[0] - 1)]
++        return (type_tok[:, None] == self.qtype_token_ids).int().argmax(-1)
++
++    def forward(
++        self,
++        input_ids: torch.Tensor | None,
++        positions: torch.Tensor,
++        intermediate_tensors: IntermediateTensors | None = None,
++        inputs_embeds: torch.Tensor | None = None,
++    ) -> torch.Tensor:
++        if input_ids is None:
++            raise ValueError("Laya requires input_ids to read the question type")
++        hidden_states = self.encoder(
++            input_ids=input_ids, positions=positions, inputs_embeds=inputs_embeds
++        )
++        hidden_states = hidden_states + self.type_emb(
++            self._question_types(input_ids, positions)
++        )
++        for layer in self.head.layers:
++            hidden_states = layer(hidden_states)
++        return hidden_states
++
++    def load_weights(self, weights: Iterable[tuple[str, torch.Tensor]]) -> set[str]:
++        loader = AutoWeightsLoader(self)
++        return loader.load_weights(weights, mapper=self.hf_to_vllm_mapper)
+diff --git a/vllm/model_executor/models/registry.py b/vllm/model_executor/models/registry.py
+--- a/vllm/model_executor/models/registry.py
++++ b/vllm/model_executor/models/registry.py
+@@ -293,6 +293,7 @@
+ 
+ _TOKEN_CLASSIFICATION_MODELS = {
+     "BertForTokenClassification": ("bert", "BertForTokenClassification"),
++    "LayaForDecision": ("laya", "LayaForDecision"),
+     "ModernBertForTokenClassification": (
+         "modernbert",
+         "ModernBertForTokenClassification",
+diff --git a/examples/pooling/token_classify/laya/README.md b/examples/pooling/token_classify/laya/README.md
+new file mode 100644
+--- /dev/null
++++ b/examples/pooling/token_classify/laya/README.md
+@@ -0,0 +1,39 @@
++# Laya typed decisions
++
++[Laya](https://github.com/NandhaKishorM/laya) answers typed questions (`choice`, `score`, `noul`) about a state in one encoder forward pass. vLLM serves it as a `token_classify` model: each question is one prompt, and the output has one row per option marker, `[p_option, *p_action]`. Option probabilities are temperature-calibrated like Laya's own `Agent`. Pass `use_activation: false` to get raw logits.
++
++## Convert a checkpoint
++
++Laya checkpoints keep their config and tokenizer in subfolders, so convert them first:
++
++```bash
++python convert_checkpoint.py convaiinnovations/laya ./laya-vllm
++python convert_checkpoint.py convaiinnovations/laya-multilingual ./laya-multilingual-vllm
++```
++
++## Offline
++
++```bash
++python laya_offline.py --model ./laya-vllm
++```
++
++## `/v1/systemone` and structured chat
++
++[`structured_server.py --backend laya`](../../../features/structured_diffusion/README.md#laya) serves the Jev `/v1/systemone` API and the schema-in-system-message `/v1/chat/completions` API in front of vLLM's `/pooling` endpoint, the same as for DiffusionGemma:
++
++```bash
++vllm serve ./laya-vllm --served-model-name laya
++python examples/features/structured_diffusion/structured_server.py --backend laya \
++    --upstream http://127.0.0.1:8000 --model laya --tokenizer ./laya-vllm --port 8011
++
++curl http://127.0.0.1:8011/v1/systemone -H 'Content-Type: application/json' -d '{
++  "state": "Hi, we were billed twice for March. Refund the duplicate today or we cancel.",
++  "questions": {
++    "churn_risk": {"type": "noul", "instructions": "Is this customer likely to churn?"},
++    "department": {"type": "choice", "instructions": "Which team should handle this?",
++                   "criteria": {"billing": "payments, refunds", "technical": "bugs, outages"}}
++  }
++}'
++```
++
++Laya's `Router`, which picks the English or multilingual checkpoint based on the script of the input, is not included. Run one vLLM server per checkpoint and route between them.
+diff --git a/examples/pooling/token_classify/laya/convert_checkpoint.py b/examples/pooling/token_classify/laya/convert_checkpoint.py
+new file mode 100644
+--- /dev/null
++++ b/examples/pooling/token_classify/laya/convert_checkpoint.py
+@@ -0,0 +1,121 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""Convert a Laya checkpoint into a directory vLLM can serve.
++
++Laya ships `rl_agent_config.json`, `encoder/config.json`, `tokenizer/` and
++`model.safetensors`. vLLM needs a root `config.json`, so this writes the
++encoder config with the `LayaForDecision` architecture and a `laya_config`
++block, next to the tokenizer and (hard-linked when possible) weights.
++
++    python convert_checkpoint.py convaiinnovations/laya ./laya-vllm
++    python convert_checkpoint.py convaiinnovations/laya-multilingual \
++        ./laya-multilingual-vllm
++"""
++
++import argparse
++import json
++import os
++import shutil
++
++from huggingface_hub import snapshot_download
++from transformers import AutoTokenizer
++
++QTYPES = ("choice", "score", "noul")
++LAYA_CONFIG_KEYS = (
++    "head_layers",
++    "max_len",
++    "head_max_len",
++    "act_costs",
++    "temperature",
++    "temperature_by_options",
++)
++
++
++def fix_tokenizer_config(path: str) -> None:
++    """Same fix-ups as `laya.agent._fix_tokenizer_config`."""
++    with open(path) as f:
++        cfg = json.load(f)
++    if cfg.get("tokenizer_class") in (None, "TokenizersBackend"):
++        cfg["tokenizer_class"] = "PreTrainedTokenizerFast"
++        cfg.pop("backend", None)
++        cfg.pop("is_local", None)
++    if isinstance(extra := cfg.get("extra_special_tokens"), list):
++        cfg["extra_special_tokens"] = {f"extra_{i}": t for i, t in enumerate(extra)}
++    with open(path, "w") as f:
++        json.dump(cfg, f, indent=2)
++
++
++def link_or_copy(src: str, dst: str) -> None:
++    src = os.path.realpath(src)
++    if os.path.lexists(dst):
++        os.remove(dst)
++    try:
++        os.link(src, dst)
++    except OSError:
++        shutil.copyfile(src, dst)
++
++
++def main() -> None:
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("model", help="Laya Hugging Face repo id or local directory")
++    parser.add_argument("output", help="Directory to write the converted model to")
++    parser.add_argument("--subfolder", default=None)
++    args = parser.parse_args()
++
++    src = args.model
++    if not os.path.isdir(src):
++        prefix = f"{args.subfolder}/" if args.subfolder else ""
++        src = snapshot_download(
++            src,
++            allow_patterns=[
++                prefix + p
++                for p in (
++                    "rl_agent_config.json",
++                    "model.safetensors",
++                    "tokenizer/*",
++                    "encoder/*",
++                )
++            ],
++        )
++    if args.subfolder:
++        src = os.path.join(src, args.subfolder)
++
++    os.makedirs(args.output, exist_ok=True)
++    for name in os.listdir(os.path.join(src, "tokenizer")):
++        shutil.copyfile(
++            os.path.join(src, "tokenizer", name), os.path.join(args.output, name)
++        )
++    fix_tokenizer_config(os.path.join(args.output, "tokenizer_config.json"))
++    link_or_copy(
++        os.path.join(src, "model.safetensors"),
++        os.path.join(args.output, "model.safetensors"),
++    )
++
++    tokenizer = AutoTokenizer.from_pretrained(args.output)
++    # The pooler reads the question type from the first token after [CLS].
++    qtype_token_ids = [
++        tokenizer(f"{t} question: ", add_special_tokens=False)["input_ids"][0]
++        for t in QTYPES
++    ]
++    if len(set(qtype_token_ids)) != len(QTYPES):
++        raise ValueError(f"Question types share a first token: {qtype_token_ids}")
++
++    with open(os.path.join(src, "rl_agent_config.json")) as f:
++        agent_config = json.load(f)
++    with open(os.path.join(src, "encoder", "config.json")) as f:
++        config = json.load(f)
++    config["architectures"] = ["LayaForDecision"]
++    # Laya runs under autocast in this dtype.
++    config["dtype"] = {"bf16": "bfloat16"}.get(agent_config.get("amp_dtype"), "float16")
++    config["laya_config"] = {
++        **{k: agent_config[k] for k in LAYA_CONFIG_KEYS if k in agent_config},
++        "mask_token_id": tokenizer.mask_token_id,
++        "qtype_token_ids": qtype_token_ids,
++    }
++    with open(os.path.join(args.output, "config.json"), "w") as f:
++        json.dump(config, f, indent=2)
++    print(f"Wrote {args.output}")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/examples/pooling/token_classify/laya/laya_offline.py b/examples/pooling/token_classify/laya/laya_offline.py
+new file mode 100644
+--- /dev/null
++++ b/examples/pooling/token_classify/laya/laya_offline.py
+@@ -0,0 +1,84 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""Answer typed questions with a Laya checkpoint converted by
++`convert_checkpoint.py`.
++
++    python laya_offline.py --model ./laya-vllm
++"""
++
++import argparse
++import json
++
++from laya_prompts import (
++    build_prompt,
++    check_question,
++    decode_answer,
++    normalize_question,
++)
++
++from vllm import LLM
++
++STATE = {
++    "from": "user@acme.com",
++    "subject": "Duplicate charge on invoice #4411",
++    "body": "Hi, we were billed twice for March. Please refund the duplicate "
++    "today or we will cancel our plan.",
++}
++QUESTIONS = {
++    "department": {
++        "type": "choice",
++        "instructions": "Which department should handle this request?",
++        "criteria": {
++            "billing": "invoices, payments, refunds",
++            "technical": "bugs, outages, system errors",
++            "sales": "pricing, new contracts",
++            "other": "everything else",
++        },
++    },
++    "urgency": {
++        "type": "score",
++        "instructions": "How urgent is this request?",
++        "criteria": ["not urgent", "soon", "critical deadline or blocking issue"],
++    },
++    "churn_risk": {
++        "type": "noul",
++        "instructions": "Does the user threaten to cancel or leave?",
++    },
++}
++
++
++def main() -> None:
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--model", default="./laya-vllm")
++    args = parser.parse_args()
++
++    llm = LLM(model=args.model, runner="pooling")
++    tokenizer = llm.get_tokenizer()
++    laya_config = llm.llm_engine.model_config.hf_config.laya_config
++
++    for qid, qdef in QUESTIONS.items():
++        check_question(qid, qdef)
++    questions = {qid: normalize_question(q) for qid, q in QUESTIONS.items()}
++    prompts = [
++        {
++            "prompt_token_ids": build_prompt(
++                tokenizer,
++                STATE,
++                q,
++                laya_config["max_len"],
++                laya_config["head_max_len"],
++            )
++        }
++        for q in questions.values()
++    ]
++
++    outputs = llm.encode(prompts, pooling_task="token_classify")
++    answers = {
++        qid: decode_answer(q, output.outputs.data.tolist())
++        for (qid, q), output in zip(questions.items(), outputs)
++    }
++    print(json.dumps(answers, indent=2))
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/examples/pooling/token_classify/laya/laya_prompts.py b/examples/pooling/token_classify/laya/laya_prompts.py
+new file mode 100644
+--- /dev/null
++++ b/examples/pooling/token_classify/laya/laya_prompts.py
+@@ -0,0 +1,166 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""Build Laya prompts and decode `token_classify` outputs into typed answers.
++
++Ported from `laya.common.build_sequence` and `laya.agent.Agent` so answers
++match the reference implementation (https://github.com/NandhaKishorM/laya).
++"""
++
++import json
++import math
++from typing import Any
++
++DEFAULT_NOUL_LABELS = {"false": "false", "true": "true"}
++
++
++def serialize_state(state: str | dict | list) -> str:
++    if isinstance(state, str):
++        return state
++    return json.dumps(state, ensure_ascii=False)
++
++
++def render_criterion(value: Any) -> str:
++    if isinstance(value, str):
++        return value
++    return json.dumps(value, ensure_ascii=False, separators=(", ", ": "), default=str)
++
++
++def check_question(qid: str, qdef: Any) -> None:
++    if not isinstance(qdef, dict):
++        raise ValueError(f"question {qid!r}: definition must be a dict")
++    t = qdef.get("type")
++    if t not in ("choice", "score", "noul"):
++        raise ValueError(f"question {qid!r}: unknown type {t!r}")
++    if "instructions" not in qdef:
++        raise ValueError(f"question {qid!r}: no 'instructions'")
++    crit = qdef.get("criteria")
++    if t == "choice" and (not isinstance(crit, (dict, list)) or not crit):
++        raise ValueError(f"question {qid!r}: choice needs a non-empty 'criteria'")
++    if t == "score" and (not isinstance(crit, list) or not crit):
++        raise ValueError(f"question {qid!r}: score needs a non-empty 'criteria' list")
++    if t == "noul" and crit is not None and not isinstance(crit, dict):
++        raise ValueError(f"question {qid!r}: noul 'criteria' must be a dict")
++    if "labels" in qdef and t != "noul":
++        raise ValueError(f"question {qid!r}: 'labels' is only supported for noul")
++
++
++def normalize_question(qdef: dict) -> dict:
++    t, crit = qdef["type"], qdef.get("criteria")
++    if t == "choice" and isinstance(crit, list):
++        crit = {c: None for c in crit}
++    elif t == "noul" and isinstance(crit, dict):
++        crit = {str(k).lower(): v for k, v in crit.items()}
++    ins = qdef["instructions"]
++    if not isinstance(ins, str):
++        ins = json.dumps(ins, ensure_ascii=False)
++    return {"t": t, "ins": ins, "crit": crit, "labels": qdef.get("labels")}
++
++
++def render_options(q: dict) -> list[str]:
++    t, crit = q["t"], q["crit"]
++    if t == "choice":
++        return [
++            k if v is None or v == "" else f"{k}: {render_criterion(v)}"
++            for k, v in crit.items()
++        ]
++    if t == "score":
++        return [f"level {i}: {render_criterion(c)}" for i, c in enumerate(crit)]
++    crit = crit or {}
++    labels = q["labels"] or DEFAULT_NOUL_LABELS
++    defaults = {
++        "false": "no, the statement does not hold",
++        "true": "yes, the statement holds",
++    }
++    return [
++        f"{labels[key].strip()}: "
++        + (
++            render_criterion(crit[key])
++            if crit.get(key) not in (None, "")
++            else defaults[key]
++        )
++        for key in ("false", "true")
++    ]
++
++
++def build_prompt(
++    tokenizer,
++    state: str | dict | list,
++    q: dict,
++    max_len: int,
++    head_max_len: int,
++) -> list[int]:
++    """`[CLS] <type> question: ins [SEP] ``MASK`` opt0 ... [SEP] state [SEP]`"""
++    mask_tok = tokenizer.mask_token
++
++    def encode(text: str) -> list[int]:
++        return tokenizer(text.replace(mask_tok, " "), add_special_tokens=False)[
++            "input_ids"
++        ]
++
++    head_ids = encode(f"{q['t']} question: {q['ins']}")
++    opt_ids = [
++        [tokenizer.mask_token_id] + encode(" " + opt)[:48] for opt in render_options(q)
++    ]
++    opt_budget = head_max_len - sum(len(o) for o in opt_ids)
++    if opt_budget < 16:
++        per = max(4, (head_max_len - 16) // len(opt_ids))
++        opt_ids = [o[:per] for o in opt_ids]
++        opt_budget = head_max_len - sum(len(o) for o in opt_ids)
++    ids = (
++        [tokenizer.cls_token_id]
++        + head_ids[: max(8, opt_budget)]
++        + [tokenizer.sep_token_id]
++    )
++    for o in opt_ids:
++        ids.extend(o)
++    ids.append(tokenizer.sep_token_id)
++
++    room = max(0, max_len - len(ids) - 1)
++    state_ids = encode(serialize_state(state))
++    # Conversations are newest-last, so keep their tail.
++    if isinstance(state, list):
++        state_ids = state_ids[max(0, len(state_ids) - room) :]
++    else:
++        state_ids = state_ids[:room]
++    ids = (ids + state_ids + [tokenizer.sep_token_id])[:max_len]
++    if ids.count(tokenizer.mask_token_id) != len(opt_ids):
++        raise ValueError(f"question options exceed max_len={max_len}")
++    return ids
++
++
++def confidence(p: list[float]) -> float:
++    k = len(p)
++    if k < 2:
++        return 1.0
++    ent = -sum(x * math.log(min(max(x, 1e-12), 1.0)) for x in p)
++    return min(max(1.0 - ent / math.log(k), 0.0), 1.0)
++
++
++def decode_answer(q: dict, rows: list[list[float]]) -> dict:
++    """`rows` is one question's `token_classify` output: `[p_option, *p_act]`."""
++    p = [row[0] for row in rows]
++    action = {"act_probability": round(rows[0][1], 4)}
++    if q["t"] == "choice":
++        keys = list(q["crit"])
++        return {
++            "type": "choice",
++            "choice": keys[max(range(len(p)), key=p.__getitem__)],
++            "probabilities": {k: round(v, 4) for k, v in zip(keys, p)},
++            "confidence": round(confidence(p), 4),
++            "action": action,
++        }
++    if q["t"] == "score":
++        return {
++            "type": "score",
++            "score": round(sum(i * v for i, v in enumerate(p)), 4),
++            "legend": {str(i): c for i, c in enumerate(q["crit"])},
++            "probabilities": {str(i): round(v, 4) for i, v in enumerate(p)},
++            "confidence": round(confidence(p), 4),
++            "action": action,
++        }
++    return {
++        "type": "noul",
++        "noul": round(p[1], 4),
++        "confidence": round(max(p[1], 1.0 - p[1]), 4),
++        "action": action,
++    }

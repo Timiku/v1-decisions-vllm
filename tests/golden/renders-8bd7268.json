@@ -1,0 +1,229 @@
+{
+ "source_commit": "8bd7268",
+ "cases": {
+  "typed_noul_criteria": [
+   {
+    "messages": [
+     {
+      "role": "system",
+      "content": "Apply the supplied criterion to the supplied evidence. Choose exactly one listed option. Respond with only its uppercase letter, with no explanation or reasoning."
+     },
+     {
+      "role": "user",
+      "content": "{\"evidence\": \"Ticket: payouts failing for 3 days.\", \"criterion\": \"Does this convey urgency?\", \"options\": [{\"letter\": \"A\", \"description\": \"Explicitly time-sensitive\"}, {\"letter\": \"B\", \"description\": \"No urgency expressed\"}]}"
+     }
+    ],
+    "slot_ids": [
+     65,
+     66
+    ],
+    "option_ids": [
+     "true",
+     "false"
+    ]
+   }
+  ],
+  "typed_noul_bare": [
+   {
+    "messages": [
+     {
+      "role": "system",
+      "content": "Apply the supplied criterion to the supplied evidence. Choose exactly one listed option. Respond with only its uppercase letter, with no explanation or reasoning."
+     },
+     {
+      "role": "user",
+      "content": "{\"evidence\": \"Ticket: payouts failing for 3 days.\", \"criterion\": \"Is it urgent?\", \"options\": [{\"letter\": \"A\", \"description\": \"Yes\"}, {\"letter\": \"B\", \"description\": \"No\"}]}"
+     }
+    ],
+    "slot_ids": [
+     65,
+     66
+    ],
+    "option_ids": [
+     "true",
+     "false"
+    ]
+   }
+  ],
+  "typed_choice_mixed": [
+   {
+    "messages": [
+     {
+      "role": "system",
+      "content": "Apply the supplied criterion to the supplied evidence. Choose exactly one listed option. Respond with only its uppercase letter, with no explanation or reasoning."
+     },
+     {
+      "role": "user",
+      "content": "{\"evidence\": \"Ticket: payouts failing for 3 days.\", \"criterion\": \"Which team?\", \"options\": [{\"letter\": \"A\", \"description\": \"Payments, refunds\"}, {\"letter\": \"B\", \"description\": \"technical\"}, {\"letter\": \"C\", \"description\": \"{\\\"covers\\\": [\\\"disputes\\\", \\\"fraud\\\"]}\"}]}"
+     }
+    ],
+    "slot_ids": [
+     65,
+     66,
+     67
+    ],
+    "option_ids": [
+     "billing",
+     "technical",
+     "legal"
+    ]
+   }
+  ],
+  "typed_score": [
+   {
+    "messages": [
+     {
+      "role": "system",
+      "content": "Apply the supplied criterion to the supplied evidence. Choose exactly one listed option. Respond with only its uppercase letter, with no explanation or reasoning."
+     },
+     {
+      "role": "user",
+      "content": "{\"evidence\": \"Ticket: payouts failing for 3 days.\", \"criterion\": \"How frustrated?\", \"options\": [{\"letter\": \"A\", \"description\": \"Calm\"}, {\"letter\": \"B\", \"description\": \"Frustrated\"}, {\"letter\": \"C\", \"description\": \"Very angry\"}]}"
+     }
+    ],
+    "slot_ids": [
+     65,
+     66,
+     67
+    ],
+    "option_ids": [
+     "0",
+     "1",
+     "2"
+    ]
+   }
+  ],
+  "typed_structured": [
+   {
+    "messages": [
+     {
+      "role": "system",
+      "content": "Apply the supplied criterion to the supplied evidence. Choose exactly one listed option. Respond with only its uppercase letter, with no explanation or reasoning."
+     },
+     {
+      "role": "user",
+      "content": "{\"evidence\": \"{\\\"ticket\\\": \\\"payouts failing\\\", \\\"days\\\": 3, \\\"tags\\\": [\\\"billing\\\", \\\"ünïcode\\\"]}\", \"criterion\": \"{\\\"task\\\": \\\"route\\\", \\\"field\\\": \\\"`ticket`\\\"}\", \"options\": [{\"letter\": \"A\", \"description\": \"Payments\"}, {\"letter\": \"B\", \"description\": \"Bugs\"}]}"
+     }
+    ],
+    "slot_ids": [
+     65,
+     66
+    ],
+    "option_ids": [
+     "billing",
+     "technical"
+    ]
+   }
+  ],
+  "typed_multi": [
+   {
+    "messages": [
+     {
+      "role": "system",
+      "content": "Apply the supplied criterion to the supplied evidence. Choose exactly one listed option. Respond with only its uppercase letter, with no explanation or reasoning."
+     },
+     {
+      "role": "user",
+      "content": "{\"evidence\": \"Ticket: payouts failing for 3 days.\", \"criterion\": \"Urgent?\", \"options\": [{\"letter\": \"A\", \"description\": \"Yes\"}, {\"letter\": \"B\", \"description\": \"No\"}]}"
+     }
+    ],
+    "slot_ids": [
+     65,
+     66
+    ],
+    "option_ids": [
+     "true",
+     "false"
+    ]
+   },
+   {
+    "messages": [
+     {
+      "role": "system",
+      "content": "Apply the supplied criterion to the supplied evidence. Choose exactly one listed option. Respond with only its uppercase letter, with no explanation or reasoning."
+     },
+     {
+      "role": "user",
+      "content": "{\"evidence\": \"Ticket: payouts failing for 3 days.\", \"criterion\": \"Which team?\", \"options\": [{\"letter\": \"A\", \"description\": \"Payments\"}, {\"letter\": \"B\", \"description\": \"Bugs\"}]}"
+     }
+    ],
+    "slot_ids": [
+     65,
+     66
+    ],
+    "option_ids": [
+     "billing",
+     "technical"
+    ]
+   }
+  ],
+  "shorthand_choice": [
+   {
+    "messages": [
+     {
+      "role": "system",
+      "content": "Apply the supplied criterion to the supplied evidence. Choose exactly one listed option. Respond with only its uppercase letter, with no explanation or reasoning."
+     },
+     {
+      "role": "user",
+      "content": "{\"evidence\": \"The patient reports chest pain radiating to the left arm.\", \"criterion\": \"Which diagnosis fits best?\", \"options\": [{\"letter\": \"A\", \"description\": \"Acute cardiac event\"}, {\"letter\": \"B\", \"description\": \"Musculoskeletal\"}, {\"letter\": \"C\", \"description\": \"GERD\"}]}"
+     }
+    ],
+    "slot_ids": [
+     65,
+     66,
+     67
+    ],
+    "option_ids": [
+     "cardiac",
+     "musculoskeletal",
+     "reflux"
+    ]
+   }
+  ],
+  "shorthand_noul": [
+   {
+    "messages": [
+     {
+      "role": "system",
+      "content": "Apply the supplied criterion to the supplied evidence. Choose exactly one listed option. Respond with only its uppercase letter, with no explanation or reasoning."
+     },
+     {
+      "role": "user",
+      "content": "{\"evidence\": \"s\", \"criterion\": \"Is it urgent?\", \"options\": [{\"letter\": \"A\", \"description\": \"Yes, urgent\"}, {\"letter\": \"B\", \"description\": \"Not urgent\"}]}"
+     }
+    ],
+    "slot_ids": [
+     65,
+     66
+    ],
+    "option_ids": [
+     "true",
+     "false"
+    ]
+   }
+  ],
+  "shorthand_score": [
+   {
+    "messages": [
+     {
+      "role": "system",
+      "content": "Apply the supplied criterion to the supplied evidence. Choose exactly one listed option. Respond with only its uppercase letter, with no explanation or reasoning."
+     },
+     {
+      "role": "user",
+      "content": "{\"evidence\": \"s\", \"criterion\": \"How frustrated?\", \"options\": [{\"letter\": \"A\", \"description\": \"Calm\"}, {\"letter\": \"B\", \"description\": \"Angry\"}]}"
+     }
+    ],
+    "slot_ids": [
+     65,
+     66
+    ],
+    "option_ids": [
+     "0",
+     "1"
+    ]
+   }
+  ]
+ }
+}

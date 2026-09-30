@@ -1,0 +1,87 @@
+--- a/vllm/entrypoints/launchers/api_server/routers.py	2026-09-27 19:38:24.451201839 +0000
++++ b/vllm/entrypoints/launchers/api_server/routers.py	2026-09-27 19:38:24.456909453 +0000
+@@ -36,7 +36,9 @@
+ 
+         register_vllm_dev_api_routers(app)
+ 
+-    if "generate" in supported_tasks:
++    import os
++    if "generate" in supported_tasks or os.environ.get(
++            "VLLM_ENABLE_TYPED_DECISIONS", "").lower() in ("1", "true", "yes"):
+         from vllm.entrypoints.generate.api_router import (
+             register_generate_api_routers,
+         )
+--- a/vllm/entrypoints/launchers/api_server/app_state.py	2026-09-27 19:38:24.452201838 +0000
++++ b/vllm/entrypoints/launchers/api_server/app_state.py	2026-09-27 19:38:24.457286753 +0000
+@@ -126,7 +126,9 @@
+         trust_request_chat_template=args.trust_request_chat_template,
+     )
+ 
+-    if "generate" in supported_tasks:
++    import os
++    if ("generate" in supported_tasks or os.environ.get(
++            "VLLM_ENABLE_TYPED_DECISIONS", "").lower() in ("1", "true", "yes")):
+         from vllm.entrypoints.generate.api_router import init_generate_state
+ 
+         await init_generate_state(
+--- a/vllm/entrypoints/generate/api_router.py	2026-09-27 19:38:24.453201837 +0000
++++ b/vllm/entrypoints/generate/api_router.py	2026-09-27 19:38:24.457729033 +0000
+@@ -53,6 +53,18 @@
+ 
+     register_generative_scoring_api_router(app)
+ 
++    import os
++
++    # Typed Decisions API is opt-in. Single knob: VLLM_ENABLE_TYPED_DECISIONS
++    if os.environ.get("VLLM_ENABLE_TYPED_DECISIONS", "").lower() in ("1", "true", "yes"):
++        from .decisions.api_router import register_decisions_api_router
++
++        register_decisions_api_router(app)
++
++        from .decisions.systemone_api_router import register_systemone_api_router
++
++        register_systemone_api_router(app)
++
+ 
+ async def init_generate_state(
+     engine_client: "EngineClient",
+@@ -214,3 +226,39 @@
+         state.openai_serving_models,
+         request_logger=request_logger,
+     )
++
++    import os
++
++    # Typed Decisions API is opt-in. Single knob: VLLM_ENABLE_TYPED_DECISIONS
++    if os.environ.get("VLLM_ENABLE_TYPED_DECISIONS", "").lower() in ("1", "true", "yes"):
++        from .decisions.backends import load_decision_backend_plugins
++        load_decision_backend_plugins()
++
++        from .decisions.backends import parse_backend_spec
++        _env_spec = os.environ.get("VLLM_TYPED_DECISIONS_BACKEND") or None
++        _default_backend_name, _default_backend_kwargs = (
++            parse_backend_spec(_env_spec) if _env_spec else (None, {}))
++
++        from .decisions.serving import ServingDecisions
++
++        state.serving_decisions = ServingDecisions(
++            engine_client,
++            state.openai_serving_models,
++            state.online_renderer,
++            request_logger=request_logger,
++            default_chat_template_kwargs=default_chat_template_kwargs,
++            default_backend=_default_backend_name,
++            default_backend_kwargs=_default_backend_kwargs,
++        )
++
++        from .decisions.systemone_serving import ServingSystemOne
++
++        state.serving_systemone = ServingSystemOne(
++            engine_client,
++            state.openai_serving_models,
++            state.online_renderer,
++            request_logger=request_logger,
++            default_chat_template_kwargs=default_chat_template_kwargs,
++            default_backend=_default_backend_name,
++            default_backend_kwargs=_default_backend_kwargs,
++        )

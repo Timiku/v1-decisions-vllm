@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+# Optional operator patch: raise vLLM's cap on token ids per restricted
+# read from 128 to 600. Apply from the vLLM package root:
+#   patch -p1 < patches/max-logprob-token-ids.patch
+# With --max-logprobs >= 255 this unlocks the wide-direct readout for
+# every choice size Jev allows (255 options).
+--- a/vllm/sampling_params.py
++++ b/vllm/sampling_params.py
+@@ -28,7 +28,7 @@
+ _MAX_TEMP = 1e-2
+
+-MAX_LOGPROB_TOKEN_IDS = 128
++MAX_LOGPROB_TOKEN_IDS = 600
+ """Upper bound on `SamplingParams.logprob_token_ids` list length. Must match
+ the per-request row width allocated by the sampler's `LogprobTokenIdsState`."""
