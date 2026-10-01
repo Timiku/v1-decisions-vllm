@@ -23,6 +23,9 @@ Surface:
 """
 from __future__ import annotations
 
+import asyncio
+import os
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -52,6 +55,17 @@ class BackendHost:
         # build a host by hand). Backends treat None as "no engine cap".
         self.read_limit: int | None = None
         self.token_id_cap: int | None = None
+        # restricted_read retry-on-missing (env, read once here so tests
+        # can set the attributes directly):
+        #   DECISIONS_READ_RETRIES - re-issues of a restricted read whose
+        #     reported logprobs lack requested ids (default 2)
+        #   DECISIONS_READ_RETRY_BACKOFF_S - sleep before retry n
+        #     (default 0.25, scaled by the attempt number)
+        self.read_retries = max(
+            0, int(os.environ.get("DECISIONS_READ_RETRIES", "2")))
+        self.read_retry_backoff_s = max(
+            0.0, float(os.environ.get("DECISIONS_READ_RETRY_BACKOFF_S",
+                                      "0.25")))
 
     def wide_direct_capacity(self) -> int:
         """Options wide-direct can read in one pass on this tokenizer,
@@ -135,25 +149,44 @@ class BackendHost:
 
     async def restricted_read(self, engine_input, token_ids: list[int],
                               request_id: str
-                              ) -> tuple[dict[int, float], Any]:
+                              ) -> tuple[dict[int, float], Any, int]:
         """One forward pass returning the next-token logprob of exactly
         `token_ids` (however small; never a top-k window). Returns
-        (logprob by token id, the RequestOutput). Token ids the engine
-        didn't report are absent from the map; the caller decides."""
+        (logprob by token id, the RequestOutput, forward passes made).
+        Token ids the engine didn't report are absent from the map; the
+        caller decides.
+
+        A read whose reported logprobs lack requested ids is retried
+        (DECISIONS_READ_RETRIES, default 2, with a DECISIONS_READ_
+        RETRY_BACKOFF_S pause): the known chunked-prefill gather defect
+        is transient and re-issuing the identical request recovers the
+        ids most of the time. Found ids from every attempt are merged,
+        the last read wins per id; the returned RequestOutput is the
+        last one (its cache state is the truthful one)."""
         from vllm.sampling_params import SamplingParams
         params = SamplingParams(
             max_tokens=1, temperature=0.0, n=1,
             logprobs=len(token_ids),
             logprob_token_ids=list(token_ids))
-        result = await self.generate(engine_input, params, request_id)
-        logprobs = result.outputs[0].logprobs
-        if not logprobs:
-            raise BackendError(
-                "no logprobs returned: the engine rejected "
-                "logprob_token_ids (speculative decoding enabled?)")
-        pos0 = logprobs[0]
-        return ({t: pos0[t].logprob for t in token_ids if t in pos0},
-                result)
+        found: dict[int, float] = {}
+        result = None
+        for attempt in range(1 + self.read_retries):
+            if attempt and self.read_retry_backoff_s:
+                await asyncio.sleep(self.read_retry_backoff_s * attempt)
+            result = await self.generate(
+                engine_input, params, f"{request_id}-r{attempt}"
+                if attempt else request_id)
+            logprobs = result.outputs[0].logprobs
+            if not logprobs:
+                raise BackendError(
+                    "no logprobs returned: the engine rejected "
+                    "logprob_token_ids (speculative decoding enabled?)")
+            pos0 = logprobs[0]
+            found.update({t: pos0[t].logprob for t in token_ids if t in pos0})
+            missing = [t for t in token_ids if t not in found]
+            if not missing:
+                break
+        return found, result, attempt + 1
 
     async def pool(self, prompt_ids: list[int], pooling_params,
                    request_id: str):

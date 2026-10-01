@@ -151,6 +151,8 @@ curl -s localhost:8000/v1/decisions -H 'Content-Type: application/json' -d '{
 |`VLLM_TYPED_DECISIONS_CALIBRATION`|unset/`jevbench`, `on`, a file path, `off`|Startup calibration. Unset: on for `logit`, off for the other backends. See [Startup calibration](#startup-calibration).|
 |`VLLM_TYPED_DECISIONS_CALIBRATION_DIR`|a directory, default `$HF_HOME/decisions-calibration`|Where saved calibration results live.|
 |`VLLM_TYPED_DECISIONS_MIN_OPTION_MASS`|0–1, default `0.5`|The answer-slot self-check threshold (logit backend). `0` turns the check off. See [`logit`](#logit).|
+|`DECISIONS_READ_RETRIES`|int ≥ 0, default `2`|Re-issues of a restricted read whose reported logprobs lack requested ids (a known transient engine gather defect; see the fork's `patch_decision_logprob_chunking`). `0` disables retrying.|
+|`DECISIONS_READ_RETRY_BACKOFF_S`|float ≥ 0, default `0.25`|Seconds before retry n (scaled by n). A read still missing ids after the retries either falls back to a degraded generative read (logit `direct`/`wide-direct`, marked `degraded: true` in `meta`) or fails per question as before.|
 
 There are no CLI flags; every setting is an environment variable.
 

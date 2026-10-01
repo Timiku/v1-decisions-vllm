@@ -4,6 +4,15 @@
 
 Typed decisions for vLLM v0.30.0, as an overlay on the API server.
 
+- A restricted read whose reported logprobs lack requested ids is
+  retried (`DECISIONS_READ_RETRIES`, default 2, with a
+  `DECISIONS_READ_RETRY_BACKOFF_S` backoff): the engine's gather can
+  transiently drop requested ids under chunked-prefill contention.
+  A logit `direct`/`wide-direct` read that exhausts the retries falls
+  back to one degraded generative read scored from the top-k window
+  (`meta.degraded: true`, `readout: "direct-degraded"`); other reads
+  fail per question as before.
+
 - Backends may add an optional `read_many(questions, request_id)` that
   answers several questions of one request from shared engine requests;
   the server calls it once per multi-question request and reads whatever

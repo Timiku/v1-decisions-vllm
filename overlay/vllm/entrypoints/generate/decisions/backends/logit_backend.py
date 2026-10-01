@@ -119,9 +119,13 @@ class LogitBackend:
                            request_id: str, labels: list[str] | None = None,
                            readout_name: str = "direct",
                            layout_name: str = "direct") -> BackendResult:
-        """One forward pass; restricted gather over one token per option."""
+        """One forward pass; restricted gather over one token per option.
+        When the restricted path exhausts the host's retries with option
+        ids still missing (the engine's transient gather defect), one
+        generative read scores the options from the top-k window
+        instead: an honest degraded answer, marked in meta."""
         prompt = await self.host.render(question, labels=labels)
-        found, result = await self.host.restricted_read(
+        found, result, attempts = await self.host.restricted_read(
             prompt.engine_input, prompt.slot_ids, request_id)
         option_logits: dict[str, float] = {}
         missing: list[str] = []
@@ -131,14 +135,60 @@ class LogitBackend:
             else:
                 missing.append(option.id)
         if missing:
-            raise BackendError(
-                f"option tokens missing from the gathered logprobs: "
-                f"{missing}; cannot score", missing)
+            return await self._degraded_read(
+                question, prompt, missing, option_logits, readout_name,
+                layout_name, request_id, attempts)
         return BackendResult(
             option_logits, restricted_softmax(option_logits),
-            forward_passes=1,
+            forward_passes=attempts,
             meta={"input_tokens": prompt.input_tokens,
                   "cached_input_tokens": cached_tokens(result),
                   "option_mass": option_mass(self.host, option_logits),
                   "readout": readout_name,
                   "label_layout": layout_name})
+
+    async def _degraded_read(
+            self, question: CompiledQuestion, prompt, missing: list[str],
+            option_logits: dict[str, float], readout_name: str,
+            layout_name: str, request_id: str, attempts: int
+            ) -> BackendResult:
+        """One generative pass (max_tokens 1, temperature 0, top-20
+        logprobs) on the same prompt; each option scores its marker
+        token's logprob from the window, -inf when the marker isn't in
+        it (it loses the softmax). Marked degraded in meta."""
+        import math
+
+        from vllm.sampling_params import SamplingParams
+        params = SamplingParams(max_tokens=1, temperature=0.0, n=1,
+                                logprobs=20)
+        result = await self.host.generate(
+            prompt.engine_input, params, f"{request_id}-degraded")
+        logprobs = result.outputs[0].logprobs
+        if not logprobs:
+            raise BackendError(
+                f"option tokens missing from the gathered logprobs: "
+                f"{missing}; cannot score", missing)
+        pos0 = logprobs[0]
+        for option, tok in zip(question.options, prompt.slot_ids):
+            if option.id not in option_logits:
+                at = pos0.get(tok)
+                option_logits[option.id] = (
+                    at.logprob if at else -math.inf)
+        # every option at -inf (no marker in the window at all) has no
+        # softmax; report the honest failure
+        if all(v == -math.inf for v in option_logits.values()):
+            raise BackendError(
+                f"degraded read found none of the option markers in the "
+                f"top-k window: {missing}", missing)
+        return BackendResult(
+            option_logits, restricted_softmax(option_logits),
+            forward_passes=attempts + 1,
+            meta={"input_tokens": prompt.input_tokens,
+                  "cached_input_tokens": cached_tokens(result),
+                  "option_mass": option_mass(self.host, option_logits),
+                  "readout": "direct-degraded",
+                  "label_layout": layout_name,
+                  "degraded": True,
+                  "degraded_reason": (
+                      f"restricted gather missed {missing}; scored from "
+                      f"the top-k window")})

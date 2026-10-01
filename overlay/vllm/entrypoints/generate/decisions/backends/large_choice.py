@@ -221,8 +221,8 @@ async def _gather(host, engine_input, token_ids: list[int],
     """Restricted logprob gather for exactly `token_ids`; every id must
     come back. Returns (logprobs by token id, prompt tokens served from
     the cache)."""
-    found, result = await host.restricted_read(engine_input, token_ids,
-                                               request_id)
+    found, result, _attempts = await host.restricted_read(
+        engine_input, token_ids, request_id)
     missing = [t for t in token_ids if t not in found]
     if missing:
         raise BackendError(

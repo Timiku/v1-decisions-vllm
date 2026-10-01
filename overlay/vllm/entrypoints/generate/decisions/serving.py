@@ -488,7 +488,7 @@ class ServingDecisions(BaseServing):
             options=[DecisionOption(id=c, description=c)
                      for c in ("Berlin", "Paris", "Madrid", "Rome")])
         prompt = await self.host.render(probe)
-        found, _ = await self.host.restricted_read(
+        found, _, _attempts = await self.host.restricted_read(
             prompt.engine_input, prompt.slot_ids,
             f"decision-selfcheck-{random_uuid()}")
         return option_mass(self.host, found)
