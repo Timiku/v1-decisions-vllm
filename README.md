@@ -93,7 +93,7 @@ probabilities can be recalibrated, compared or logged downstream.
 |`install.sh`|Copies the package and applies the patch in an installed vLLM|
 |`patches/00572-diffusiongemma-structured.patch`|Engine support needed by the `canvas` backend (vendored from [#57250](https://github.com/vllm-project/vllm/pull/57250), plus a `diffusion_seed` field that is validated and stored but not yet used)|
 |`patches/00584-vllm-laya-pooling.patch`|Laya pooling model needed by the `encoder` backend (vendored from [#58429](https://github.com/vllm-project/vllm/pull/58429))|
-|`patches/max-logprob-token-ids.patch`|Optional: raises vLLM's 128 token-id cap on a restricted read to 600, so one-pass reads cover up to 255 options (see [Read limits](#read-limits))|
+|`patches/max-logprob-token-ids.patch`|Optional: raises vLLM's 128 token-id cap on a restricted read to 600, so one-pass `exact` reads cover up to 255 options (see [Read limits](#read-limits)). Not needed with `logprobs: top-k`|
 |`overlay/.../decisions/calibration_data/`|JevBench public (231 questions, MIT, credit in `NOTICE`), the default set for [startup calibration](#startup-calibration)|
 |`tools/`|Live test suites (`test_decisions.py`, `test_systemone.py`), `check_tokenizers.py` (answer-slot check on real tokenizers, no GPU), `capture_logits.py` (raw option logits for fitting T by hand)|
 |`tests/`|Offline tests (no GPU, no vLLM install needed)|
@@ -123,8 +123,8 @@ Start the server with the endpoints enabled:
 VLLM_ENABLE_TYPED_DECISIONS=1 vllm serve Qwen/Qwen3.5-0.8B --max-logprobs 128
 ```
 
-`--max-logprobs 128` lets one pass read up to 128 options (see
-[Read limits](#read-limits)). At startup the server checks the model and
+`--max-logprobs 128` lets one `exact` read cover up to 128 options; with
+`logprobs: top-k` no flag is needed (see [Read limits](#read-limits)). At startup the server checks the model and
 fits its calibration, which takes seconds on a small model and about two
 minutes on Qwen 3.8 27B. Until then decision requests return 503 with
 `Retry-After`; `/health` is up earlier.
@@ -188,8 +188,9 @@ setting to change.
 
 ### Read limits
 
-A one-pass read asks the engine for one logprob per option label, so it
-is bounded by vLLM itself:
+A one-pass `exact` read (see [Logprobs](#logprobs-exact-or-top-k)) asks
+the engine for one logprob per option label, so it is bounded by vLLM
+itself:
 
 * `--max-logprobs` (default 20): the most logprobs one request may ask
 for. `-1` means no limit.
@@ -203,11 +204,19 @@ two-stage read, which works on any setting. A request that asks for a
 one-pass read that doesn't fit gets a per-question error naming the
 setting to raise.
 
-|Server setup|One pass up to|Beyond|
-|-|-:|-|
-|stock vLLM, default `--max-logprobs`|20 (markers capped to 20, with a warning)|two-stage|
-|stock vLLM, `--max-logprobs 128` or more|128|two-stage|
-|`--max-logprobs 600` + `patches/max-logprob-token-ids.patch`|255 (the tokenizer's wide-direct capacity on Qwen)|two-stage|
+A `top-k` read names no token ids, so these limits don't bound it:
+`auto` uses one-pass wide-direct up to the tokenizer's capacity on any
+setup, and `--max-logprobs` only sets the size of the window it reads
+(bigger is closer to `exact`).
+
+|Server setup|One pass up to, `exact`|One pass up to, `top-k`|
+|-|-:|-:|
+|stock vLLM, default `--max-logprobs`|20 (markers capped to 20, with a warning)|255 (window 20)|
+|stock vLLM, `--max-logprobs 128` or more|128|255 (window 128)|
+|`--max-logprobs 600` + `patches/max-logprob-token-ids.patch`|255 (the tokenizer's wide-direct capacity on Qwen)|255 (window 600)|
+
+Past the one-pass limit, both use two-stage. 255 is the package's
+option limit; the wide-direct capacity on Qwen is higher.
 
 The optional patch is a one-line change to that constant; `install.sh`
 doesn't apply it. An explicitly configured marker set larger than
@@ -253,7 +262,7 @@ exactly the option markers (`logprob_token_ids`). Every option is read
 exactly, but a one-pass read is bounded by the [read limits](#read-limits),
 and under speculative decoding (MTP) the engine returns incomplete
 reads (vLLM issue 42592); those fall back to a degraded read.
-* **`top-k`** (experimental): the engine returns its plain top-k list,
+* **`top-k`**: the engine returns its plain top-k list,
 k = `--max-logprobs` (20 on stock vLLM). A marker outside the list
 scores the list's lowest log-probability, an upper bound on its true
 value, and is named in `meta.floored`; `option_mass` then counts only
@@ -265,6 +274,42 @@ Set the server default with
 `VLLM_TYPED_DECISIONS_BACKEND=logit:logprobs=top-k`, or per request with
 `"backend_options": {"logprobs": "top-k"}`. The startup log names the
 window: `logit logprobs: top-k (window 20 = --max-logprobs); ...`.
+
+Measured on Qwen3.8-27B INT4, stock vLLM v0.30.0 with the default
+`--max-logprobs` (window 20), 100 questions per size, accuracy against
+the correct answer:
+
+|Options|`exact` (two-stage)|`top-k` (wide-direct)|`exact` wide-direct, patched server|
+|-|-:|-:|-:|
+|32|95 (5.2 s)|94 (0.6 s)|95|
+|64|85 (9.8 s)|95 (1.2 s)|94|
+|128|83 (19.3 s)|90 (2.1 s)|92|
+|255|62 (37.9 s)|84 (4.0 s)|81|
+
+The correct option was inside the 20-wide window on every question. On
+JevBench (2 to 6 options) the two gave the same answer on all 231
+questions (199/231 correct), with probabilities within 0.00002.
+
+What each costs:
+
+* `top-k` with a small window ties every option outside it at the
+window's floor. The top answer is unaffected, but those options'
+probabilities are overstated: calibration error at 255 options was
+0.141 with a 20-wide window against 0.066 for `exact`. With a 256-wide
+window it matched `exact` (probabilities within 0.002).
+* `exact` under speculative decoding: with MTP on and chat generating
+at the same time, the engine lost requested logprobs on 123 of 231
+reads (vLLM issue [#42592](https://github.com/vllm-project/vllm/issues/42592),
+fix pending in [#44727](https://github.com/vllm-project/vllm/pull/44727)).
+Every request still got an answer, but those answers came from the
+degraded fallback (4 engine passes, `degraded: true`). Two-stage
+`exact` reads have no fallback and fail per question. With MTP and no
+other traffic, `exact` reads were clean. `top-k` was clean under the
+same load: 331/331 answers, one pass each, none degraded.
+
+Use `top-k` on a stock server, with speculative decoding, or past 20
+options without raising `--max-logprobs`. Use `exact` when you need the
+true score of every option and the server has no speculative decoding.
 
 The encoder and canvas backends use a direct read only, so they refuse
 more options than markers.
@@ -395,7 +440,10 @@ all mass on one option; 0.0 means uniform.
 
   * `backend`: what the backend did. Always `name` and `option_logits`
 (the raw score per option; `softmax(option_logits)` is the
-uncalibrated distribution), plus the backend's own facts: two-stage's
+uncalibrated distribution), plus the backend's own facts: the logit
+backend's `logprobs` and `topk_window` on a `top-k` read, `floored` (options
+outside the window, scored at its floor), `degraded` and
+`degraded_reason` on a fallback read; two-stage's
 `stage1_scores` and `shortlist`, canvas's `seed`, `samples` and
 `canvas_width`, the encoder's `prompt_source`, or a plugin's fields.
   * `audit`: the same facts on every backend, to check how the answer was
@@ -412,8 +460,8 @@ produced:
 |`forward_passes`|Engine passes for this answer (`canvas` with `samples=n` reports n)|
 |`input_tokens`|Prompt tokens for this question, over every engine read it took (two-stage: k+1 reads; canvas: one per sample)|
 |`cached_input_tokens`|How many of those prompt tokens the engine served from its prefix cache instead of recomputing. `null` when the backend can't tell|
-|`option_mass`|Logit backend, direct and wide-direct reads: the share of the model's whole next-token probability that landed on any option (Σ exp(logprob) over the option tokens), before the probabilities are renormalized over the options. Near 1: the model clearly wanted to answer with an option. Low (say below 0.5): the options don't fit the question or the prompt confused the model, so treat the answer with suspicion. `null` for two-stage, encoder and canvas reads, and when the server runs with a `--logprobs-mode` other than `raw_logprobs`|
-|`readout`|Which read produced the answer (`direct`, `wide-direct`, `two-stage`, or a plugin's name)|
+|`option_mass`|Logit backend, direct and wide-direct reads: the share of the model's whole next-token probability that landed on any option (Σ exp(logprob) over the option tokens), before the probabilities are renormalized over the options. Near 1: the model clearly wanted to answer with an option. Low (say below 0.5): the options don't fit the question or the prompt confused the model, so treat the answer with suspicion. On a `top-k` read it counts only the options inside the window, so it can only understate. `null` for two-stage, encoder and canvas reads, and when the server runs with a `--logprobs-mode` other than `raw_logprobs`|
+|`readout`|Which read produced the answer (`direct`, `wide-direct`, `two-stage`, `direct-degraded` for the fallback after an incomplete `exact` read, or a plugin's name)|
 |`label_layout`|How the options were labelled (`direct` letters, or `merged-pairs` for wide-direct)|
 
 `usage.input_tokens` and `usage.cached_input_tokens` sum the answers' values.
@@ -455,7 +503,7 @@ diagnostics, send the same `questions` block to `/v1/decisions`.
 
 ||Jev|This endpoint|
 |-|-|-|
-|Choice options|up to 255|up to 255 (`VLLM_TYPED_DECISIONS_MAX_OPTIONS`); more than 26 uses the wide-direct read on the `logit` backend (two-stage beyond its capacity)|
+|Choice options|up to 255|up to 255 (`VLLM_TYPED_DECISIONS_MAX_OPTIONS`); more than the marker count uses the wide-direct read on the `logit` backend (two-stage past the [read limits](#read-limits) with `exact`)|
 |Structured `instructions`|field references resolved natively|rendered as JSON; backtick references stay literal text|
 |`model`|selects a Jev model|a label only. `jev-latest` and `jev-preview` are echoed as `jev-1.13.0`; other ids are echoed unchanged. The served checkpoint is whatever vLLM loaded.|
 |Calibration|server-side|server-side: the operator's T or the startup calibration (see [Calibration](#calibration)); no per-request override on this wire|
@@ -795,11 +843,15 @@ with the board's self-hosted adjustment; accuracy 196/231 (84.8%).
 8 questions 141 ms per decision, 16 questions 127 ms (7.9 decisions/s)
 at concurrency 1. Concurrency 4 was slower (2.0–2.3 decisions/s) on
 this uneven GPU pair.
-* One question on a 32,302-token state: 25.5 s, answered correctly.
-* Prefix cache: 0% hit rate, including on plain `/v1/completions`, with
-`--enable-prefix-caching --mamba-cache-mode align`. This is a vLLM
-v0.30.0 limit on hybrid models; the shared-state speedup below does not
-apply to them until it is lifted.
+* One question on a 32,302-token state: 25.5 s uncached, answered
+correctly.
+* Prefix cache: reused in 784-token blocks, the same with the default
+cache mode and `--mamba-cache-mode align`. A repeat question on a
+32k-token state took 0.79 s against 24.8 s for the first (measured with
+`--max-logprobs 128`, no patch). An earlier run on this machine showed
+0% reuse; that does not reproduce, and the cause is not known.
+* Large choice questions and speculative decoding: see
+[Logprobs](#logprobs-exact-or-top-k).
 
 **Qwen3-4B BF16, one GPU** (`--max-logprobs 128`), 16 questions over one
 ~4.2k-token state:
