@@ -261,12 +261,12 @@ was also tried; it lost to wide-direct and was removed.)
 
 How each read gets the markers' log-probabilities:
 
-* **`exact`** (the default): the engine returns the log-probability of
+* **`exact`**: the engine returns the log-probability of
 exactly the option markers (`logprob_token_ids`). Every option is read
 exactly, but a one-pass read is bounded by the [read limits](#read-limits),
 and under speculative decoding (MTP) the engine returns incomplete
 reads (vLLM issue 42592); those fall back to a degraded read.
-* **`top-k`**: the engine returns its plain top-k list,
+* **`top-k`** (the default): the engine returns its plain top-k list,
 k = `--max-logprobs` (20 on stock vLLM). A marker outside the list
 scores the list's lowest log-probability, an upper bound on its true
 value, and is named in `meta.floored`; `option_mass` then counts only
@@ -275,8 +275,8 @@ wide-direct up to the tokenizer's capacity on a stock server, and it
 works under speculative decoding.
 
 Set the server default with
-`VLLM_TYPED_DECISIONS_BACKEND=logit:logprobs=top-k`, or per request with
-`"backend_options": {"logprobs": "top-k"}`. The startup log names the
+`VLLM_TYPED_DECISIONS_BACKEND=logit:logprobs=exact`, or per request with
+`"backend_options": {"logprobs": "exact"}`. The startup log names the
 window: `logit logprobs: top-k (window 20 = --max-logprobs); ...`.
 
 Measured on Qwen3.8-27B INT4, stock vLLM v0.30.0 with the default

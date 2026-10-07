@@ -19,8 +19,8 @@ plain top-k window, k = --max-logprobs; a marker outside the window
 scores the window's lowest logprob, an upper bound). top-k needs no
 per-label engine limit and works under speculative decoding, where
 logprob_token_ids reads come back incomplete. The server default is the
-constructor's `logprobs` (VLLM_TYPED_DECISIONS_BACKEND=logit:logprobs=top-k),
-`exact` when unset.
+constructor's `logprobs` (VLLM_TYPED_DECISIONS_BACKEND=logit:logprobs=exact),
+`top-k` when unset.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ class LogitBackend:
     architectures: tuple[str, ...] = ()   # the fallback for every model
     options_model = LogitOptions
 
-    def __init__(self, host, logprobs: str = "exact"):
+    def __init__(self, host, logprobs: str = "top-k"):
         if logprobs not in LOGPROBS_MODES:
             raise ValueError(
                 f"logit backend: logprobs must be one of {LOGPROBS_MODES}; "

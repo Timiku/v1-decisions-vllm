@@ -51,3 +51,16 @@ def _calibration_dir_isolated(tmp_path, monkeypatch):
     dir, so every test gets a per-test tmp dir instead."""
     monkeypatch.setenv("VLLM_TYPED_DECISIONS_CALIBRATION_DIR",
                        str(tmp_path / "calibration"))
+
+
+@pytest.fixture(autouse=True)
+def _logit_reads_exact_in_older_suites(request, monkeypatch):
+    """The logit backend reads `top-k` by default. The suites written
+    before that default exercise the exact gather (their fake engines
+    answer logprob_token_ids), so they keep `exact`; test_topk_logprobs
+    tests the real default."""
+    if request.module.__name__.endswith("test_topk_logprobs"):
+        return
+    from vllm.entrypoints.generate.decisions.backends.logit_backend import (
+        LogitBackend)
+    monkeypatch.setattr(LogitBackend.__init__, "__defaults__", ("exact",))

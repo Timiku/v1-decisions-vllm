@@ -34,8 +34,8 @@ def _best(res):
 
 
 class TestConstructor:
-    def test_default_is_exact(self):
-        assert LogitBackend(object()).logprobs == "exact"
+    def test_default_is_topk(self):
+        assert LogitBackend(object()).logprobs == "top-k"
 
     def test_bad_logprobs_mode_refused(self):
         with pytest.raises(ValueError):

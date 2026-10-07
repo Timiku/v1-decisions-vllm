@@ -2,13 +2,14 @@
 
 ## Unreleased
 
-- Logit backend: `logprobs` option, `exact` (default) or `top-k`. `top-k`
+- Logit backend: `logprobs` option, `top-k` (default) or `exact`. `top-k`
   reads the markers from the engine's plain top-k window
   (k = `--max-logprobs`, no `logprob_token_ids`); a marker outside it
   scores the window's lowest logprob and is listed in `meta.floored`.
   No per-label limit, so `auto` reaches wide-direct capacity on a stock
-  server, and it works under speculative decoding. Server default via
-  `VLLM_TYPED_DECISIONS_BACKEND=logit:logprobs=top-k`, per request via
+  server, and it works under speculative decoding (vLLM issue 42592
+  makes `exact` reads come back incomplete under MTP load). Switch back
+  via `VLLM_TYPED_DECISIONS_BACKEND=logit:logprobs=exact`, per request via
   `backend_options.logprobs`.
 - `auto` with `exact`: past the engine's read limit, the wide-direct
   read switches to `top-k` instead of falling back to two-stage. On a
