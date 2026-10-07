@@ -189,15 +189,17 @@ class TestDegradedFallback:
         assert res.forward_passes == 2  # 1 restricted + 1 generative
         assert engine.request_ids[-1].endswith("-degraded")
 
-    def test_marker_out_of_window_scores_neg_inf(self, no_sleep):
-        # window holds markers A and B only: o2 (marker C) scores -inf
-        # and loses the softmax, which stays well-formed
+    def test_marker_out_of_window_takes_window_floor(self, no_sleep):
+        # window holds markers A and B plus an unrelated token: o2
+        # (marker C) scores the window's lowest logprob, an upper bound,
+        # never -inf (which the JSON response can't carry)
         window = _lp(65, 66, favour=65)
+        window[300] = _FakeLogProb(-5.0)
         engine = _RetryEngine([_lp(65), window])
         backend = _direct_backend(engine)
         res = asyncio.run(backend.read(_question(3), "rid"))
-        assert res.option_logits["o2"] == -math.inf
-        assert res.probabilities["o2"] == 0.0
+        assert res.option_logits["o2"] == -5.0
+        assert res.meta["floored"] == ["o2"]
         assert res.meta["degraded"] is True
         assert abs(sum(res.probabilities.values()) - 1.0) < 1e-9
 

@@ -11,6 +11,15 @@ read: `direct` (one marker per option, up to the marker count),
 `wide-direct` (markers plus single-token letter pairs, one pass),
 `two-stage` (a yes/no read per option, then a direct read of the
 finalists), or `auto` (direct within the marker count, else two-stage).
+
+`gather` picks how a read gets the markers' logprobs: `exact` (the
+engine's logprob_token_ids, every marker exact) or `top-k` (the engine's
+plain top-k window, k = --max-logprobs; a marker outside the window
+scores the window's lowest logprob, an upper bound). top-k needs no
+per-label engine limit and works under speculative decoding, where
+logprob_token_ids reads come back incomplete. The server default is the
+constructor's `gather` (VLLM_TYPED_DECISIONS_BACKEND=logit:gather=top-k),
+`exact` when unset.
 """
 
 from __future__ import annotations
@@ -23,11 +32,15 @@ from ..protocol import CompiledQuestion
 from . import (BackendError, BackendResult, cached_tokens, option_mass,
                restricted_softmax)
 
+GATHERS = ("exact", "top-k")
+
 
 class LogitOptions(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     readout: Literal["auto", "direct", "wide-direct", "two-stage"] = "auto"
+    # None: the server's default (the backend's constructor `gather`)
+    gather: Literal["exact", "top-k"] | None = None
 
 
 class LogitBackend:
@@ -38,8 +51,13 @@ class LogitBackend:
     architectures: tuple[str, ...] = ()   # the fallback for every model
     options_model = LogitOptions
 
-    def __init__(self, host):
+    def __init__(self, host, gather: str = "exact"):
+        if gather not in GATHERS:
+            raise ValueError(
+                f"logit backend: gather must be one of {GATHERS}; "
+                f"got {gather!r}")
         self.host = host
+        self.gather = gather
 
     def _options(self, question: CompiledQuestion) -> LogitOptions:
         opts = question.backend_options
@@ -53,24 +71,30 @@ class LogitBackend:
                    request_id: str) -> BackendResult:
         limits = self.host.limits
         k = len(question.options)
-        readout = self._options(question).readout
+        options = self._options(question)
+        readout = options.readout
+        gather = options.gather or self.gather
+        exact = gather == "exact"
         if readout == "auto":
             # direct within the marker count; then wide-direct up to its
             # capacity on this tokenizer, never past the engine's read
             # limit (a stock vLLM caps --max-logprobs and the token-id
-            # count); else two-stage. In paired A/B runs, wide-direct
-            # was as accurate as two-stage or better, with one pass
-            # instead of k+1: more accurate on the 4B, level on the 27B
-            # at 32/64 options, about 2x faster on the 4B.
+            # count; a top-k read has no per-label limit); else
+            # two-stage. In paired A/B runs, wide-direct was as accurate
+            # as two-stage or better, with one pass instead of k+1: more
+            # accurate on the 4B, level on the 27B at 32/64 options,
+            # about 2x faster on the 4B.
             if k <= len(limits.markers):
                 readout = "direct"
             else:
                 readout = ("wide-direct"
-                           if k <= self.host.wide_direct_capacity()
+                           if k <= self.host.wide_direct_capacity(
+                               capped=exact)
                            else "two-stage")
         if readout == "two-stage":
             from .large_choice import two_stage_read
-            return await two_stage_read(self, question, request_id, limits)
+            return await two_stage_read(self, question, request_id, limits,
+                                        gather=gather)
         if readout == "wide-direct":
             from .large_choice import wide_direct_markers
             markers = wide_direct_markers(self.host.tokenizer,
@@ -80,17 +104,18 @@ class LogitBackend:
                     f"wide-direct capacity on this tokenizer is "
                     f"{len(markers)} single-token markers; k={k}")
             limit = self._read_limit()
-            if limit is not None and k > limit:
+            if exact and limit is not None and k > limit:
                 raise BackendError(self._over_limit_message(k, "wide-direct"))
             return await self._direct_read(
                 question, request_id, labels=markers[:k],
-                readout_name="wide-direct", layout_name="merged-pairs")
+                readout_name="wide-direct", layout_name="merged-pairs",
+                gather=gather)
         if k > len(limits.markers):
             raise BackendError(
                 f"direct read supports at most {len(limits.markers)} "
                 f"options (the marker count); k={k}. Use readout "
                 "'wide-direct' or 'two-stage' for larger questions.")
-        return await self._direct_read(question, request_id)
+        return await self._direct_read(question, request_id, gather=gather)
 
     def _read_limit(self) -> int | None:
         """The engine's restricted-read limit (None = uncapped, e.g. a
@@ -113,18 +138,25 @@ class LogitBackend:
         return (f"{readout} read needs {k} one-pass logprobs but the "
                 f"engine reads at most {limit} "
                 f"(max_logprobs={max_lp}, token-id cap={cap}); raise "
-                f"{raise_setting} or use readout 'two-stage'.")
+                f"{raise_setting}, use gather 'top-k' or readout "
+                f"'two-stage'.")
 
     async def _direct_read(self, question: CompiledQuestion,
                            request_id: str, labels: list[str] | None = None,
                            readout_name: str = "direct",
-                           layout_name: str = "direct") -> BackendResult:
-        """One forward pass; restricted gather over one token per option.
-        When the restricted path exhausts the host's retries with option
-        ids still missing (the engine's transient gather defect), one
-        generative read scores the options from the top-k window
-        instead: an honest degraded answer, marked in meta."""
+                           layout_name: str = "direct",
+                           gather: str = "exact") -> BackendResult:
+        """One forward pass over one token per option. gather `exact`:
+        restricted gather; when it exhausts the host's retries with
+        option ids still missing (the engine's transient gather defect,
+        or speculative decoding), one top-k read scores the rest: an
+        honest degraded answer, marked in meta. gather `top-k`: one
+        top-k read."""
         prompt = await self.host.render(question, labels=labels)
+        if gather == "top-k":
+            return await self._window_read(
+                question, prompt, {}, readout_name, layout_name,
+                request_id, prior_passes=0, degraded_missing=None)
         found, result, attempts = await self.host.restricted_read(
             prompt.engine_input, prompt.slot_ids, request_id)
         option_logits: dict[str, float] = {}
@@ -135,9 +167,10 @@ class LogitBackend:
             else:
                 missing.append(option.id)
         if missing:
-            return await self._degraded_read(
-                question, prompt, missing, option_logits, readout_name,
-                layout_name, request_id, attempts)
+            return await self._window_read(
+                question, prompt, option_logits, readout_name, layout_name,
+                f"{request_id}-degraded", prior_passes=attempts,
+                degraded_missing=missing)
         return BackendResult(
             option_logits, restricted_softmax(option_logits),
             forward_passes=attempts,
@@ -147,48 +180,62 @@ class LogitBackend:
                   "readout": readout_name,
                   "label_layout": layout_name})
 
-    async def _degraded_read(
-            self, question: CompiledQuestion, prompt, missing: list[str],
+    async def _window_read(
+            self, question: CompiledQuestion, prompt,
             option_logits: dict[str, float], readout_name: str,
-            layout_name: str, request_id: str, attempts: int
-            ) -> BackendResult:
-        """One generative pass (max_tokens 1, temperature 0, top-20
-        logprobs) on the same prompt; each option scores its marker
-        token's logprob from the window, -inf when the marker isn't in
-        it (it loses the softmax). Marked degraded in meta."""
-        import math
-
-        from vllm.sampling_params import SamplingParams
-        params = SamplingParams(max_tokens=1, temperature=0.0, n=1,
-                                logprobs=20)
-        result = await self.host.generate(
-            prompt.engine_input, params, f"{request_id}-degraded")
-        logprobs = result.outputs[0].logprobs
-        if not logprobs:
+            layout_name: str, request_id: str, prior_passes: int,
+            degraded_missing: list[str] | None) -> BackendResult:
+        """One top-k read on the prompt. Options not already in
+        `option_logits` take their marker's logprob from the window; a
+        marker outside the window takes the window's lowest logprob (its
+        true logprob is at most that), listed in meta `floored`.
+        `option_mass` counts only markers read from a pass, so it is a
+        lower bound when any option is floored. `degraded_missing` set:
+        the fallback after an incomplete exact gather."""
+        try:
+            found, floor, result = await self.host.topk_read(
+                prompt.engine_input, prompt.slot_ids, request_id)
+        except BackendError as e:
+            if degraded_missing is None:
+                raise
             raise BackendError(
                 f"option tokens missing from the gathered logprobs: "
-                f"{missing}; cannot score", missing)
-        pos0 = logprobs[0]
+                f"{degraded_missing}; cannot score ({e})",
+                degraded_missing) from e
+        option_logits = dict(option_logits)
+        floored: list[str] = []
         for option, tok in zip(question.options, prompt.slot_ids):
-            if option.id not in option_logits:
-                at = pos0.get(tok)
-                option_logits[option.id] = (
-                    at.logprob if at else -math.inf)
-        # every option at -inf (no marker in the window at all) has no
-        # softmax; report the honest failure
-        if all(v == -math.inf for v in option_logits.values()):
+            if option.id in option_logits:
+                continue
+            if tok in found:
+                option_logits[option.id] = found[tok]
+            else:
+                floored.append(option.id)
+        # every marker outside the window: no answer to read. An empty
+        # window has no floor (-inf), so nothing can be floored either.
+        if len(floored) == len(question.options) or (
+                floored and floor == float("-inf")):
             raise BackendError(
-                f"degraded read found none of the option markers in the "
-                f"top-k window: {missing}", missing)
+                f"none of the option markers is in the top-k window "
+                f"(k={self.host.topk_window()}): {floored}", floored)
+        read = dict(option_logits)
+        for oid in floored:
+            option_logits[oid] = floor
+        meta = {"input_tokens": prompt.input_tokens,
+                "cached_input_tokens": cached_tokens(result),
+                "option_mass": option_mass(self.host, read),
+                "readout": readout_name,
+                "label_layout": layout_name,
+                "gather": "top-k",
+                "topk_window": self.host.topk_window()}
+        if floored:
+            meta["floored"] = floored
+        if degraded_missing is not None:
+            meta["readout"] = "direct-degraded"
+            meta["degraded"] = True
+            meta["degraded_reason"] = (
+                f"restricted gather missed {degraded_missing}; scored "
+                f"from the top-k window")
         return BackendResult(
             option_logits, restricted_softmax(option_logits),
-            forward_passes=attempts + 1,
-            meta={"input_tokens": prompt.input_tokens,
-                  "cached_input_tokens": cached_tokens(result),
-                  "option_mass": option_mass(self.host, option_logits),
-                  "readout": "direct-degraded",
-                  "label_layout": layout_name,
-                  "degraded": True,
-                  "degraded_reason": (
-                      f"restricted gather missed {missing}; scored from "
-                      f"the top-k window")})
+            forward_passes=prior_passes + 1, meta=meta)

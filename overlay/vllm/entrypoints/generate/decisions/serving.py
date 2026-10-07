@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import math
 import os
 import time
 
@@ -139,6 +140,18 @@ def _drop_per_option(block: dict, ids: set) -> dict:
             for k, v in block.items() if not per_option(v)}
 
 
+def _json_safe(value):
+    """`value` with every non-finite float (a -inf logit) replaced by
+    None, at any depth: the response is JSON, which has no infinities."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
+
+
 def shape_extra(answer: dict, levels: dict[str, str]) -> dict:
     """Apply the request's per-block `extra` levels to one answer.
     full: the block as is. basic: without per-option maps. none: the
@@ -247,6 +260,12 @@ class ServingDecisions(BaseServing):
             getattr(engine_client.model_config, "max_logprobs", "none"),
             token_id_cap if token_id_cap is not None else "none")
         logger.info("decision backend: %s", chosen)
+        if getattr(self.decision_backend, "gather", "exact") == "top-k":
+            logger.info(
+                "logit gather: top-k (window %d = --max-logprobs); "
+                "direct up to %d, wide-direct up to %d, two-stage beyond",
+                self.host.topk_window(), direct_capacity,
+                self.host.wide_direct_capacity(capped=False))
         # Startup work: the self-check belongs to the logit backend
         # only; calibration runs for any backend the CALIBRATION setting
         # turns on (on / file path, or jevbench for a logit default).
@@ -639,8 +658,8 @@ class ServingDecisions(BaseServing):
             json.dumps({"state": question.state}, ensure_ascii=False,
                        sort_keys=True).encode()).hexdigest()
         extra = {
-            "backend": {"name": backend.name, **meta,
-                        "option_logits": result.option_logits},
+            "backend": _json_safe({"name": backend.name, **meta,
+                                   "option_logits": result.option_logits}),
             "audit": {
                 "served_model": self.models.model_name(None),
                 "state_sha256": state_digest,

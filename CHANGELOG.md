@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- Logit backend: `gather` option, `exact` (default) or `top-k`. `top-k`
+  reads the markers from the engine's plain top-k window
+  (k = `--max-logprobs`, no `logprob_token_ids`); a marker outside it
+  scores the window's lowest logprob and is listed in `meta.floored`.
+  No per-label limit, so `auto` reaches wide-direct capacity on a stock
+  server, and it works under speculative decoding. Server default via
+  `VLLM_TYPED_DECISIONS_BACKEND=logit:gather=top-k`, per request via
+  `backend_options.gather`.
+- Fix: the degraded fallback scored a marker outside the window as
+  -inf, and the response failed JSON encoding (HTTP 400 "Out of range
+  float values"). It now takes the window's lowest logprob, and any
+  non-finite value in `extra.backend` is sent as `null`.
+
 ## 0.1.0 — first public release
 
 Typed decisions for vLLM v0.30.0, as an overlay on the API server.
