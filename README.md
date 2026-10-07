@@ -244,7 +244,7 @@ answered about 2× faster at 64 and 255 options.
 Pick one per request with `"backend_options": {"readout": "auto" | "direct" | "wide-direct" | "two-stage"}`. (A two-step "prefixed" read
 was also tried; it lost to wide-direct and was removed.)
 
-#### Gather: `exact` or `top-k`
+#### Logprobs: `exact` or `top-k`
 
 How each read gets the markers' log-probabilities:
 
@@ -262,9 +262,9 @@ wide-direct up to the tokenizer's capacity on a stock server, and it
 works under speculative decoding.
 
 Set the server default with
-`VLLM_TYPED_DECISIONS_BACKEND=logit:gather=top-k`, or per request with
-`"backend_options": {"gather": "top-k"}`. The startup log names the
-window: `logit gather: top-k (window 20 = --max-logprobs); ...`.
+`VLLM_TYPED_DECISIONS_BACKEND=logit:logprobs=top-k`, or per request with
+`"backend_options": {"logprobs": "top-k"}`. The startup log names the
+window: `logit logprobs: top-k (window 20 = --max-logprobs); ...`.
 
 The encoder and canvas backends use a direct read only, so they refuse
 more options than markers.
@@ -330,7 +330,7 @@ Request fields:
 |`model`|none|Echoed in the response; `jev-latest` / `jev-preview` resolve to `jev-1.13.0`|
 |`calibration_temperature`|the server's T|T > 0; probabilities are `softmax(scores / T)`. See [Calibration](#calibration)|
 |`backend`|startup backend|`logit`, `encoder`, `canvas`, or a registered plugin|
-|`backend_options`|none|Settings for that backend, validated by it. `logit`: `readout`, `gather`. `canvas`: `samples`, `max_steps`. `encoder`: none. A backend that takes none refuses any|
+|`backend_options`|none|Settings for that backend, validated by it. `logit`: `readout`, `logprobs`. `canvas`: `samples`, `max_steps`. `encoder`: none. A backend that takes none refuses any|
 |`seed`|none|Seeds backends that sample (`canvas`); ignored by the others|
 |`extra`|`"full"`|How much of each answer's `extra` to return: one level for both blocks, or a map per block, e.g. `{"audit": "full", "backend": "none"}`. Levels: `full`; `basic` (without per-option lists such as `option_logits`); `none` (leave the block out)|
 
@@ -536,7 +536,7 @@ server can therefore handle chat and decision traffic from one model (see
 |`backend_options`|Default|Meaning|
 |-|-|-|
 |`readout`|`auto`|See [How options are read](#how-options-are-read-logit-backend)|
-|`gather`|server default (`exact`)|`exact` or `top-k`; see [Gather](#gather-exact-or-top-k)|
+|`logprobs`|server default (`exact`)|`exact` or `top-k`; see [Logprobs](#logprobs-exact-or-top-k)|
 
 ### `encoder`
 

@@ -105,7 +105,7 @@ def _shortlist_order(scores: list[float], ranks: list[int]) -> list[int]:
 
 async def two_stage_read(backend, request: CompiledQuestion,
                          request_id: str, limits,
-                         gather: str = "exact") -> BackendResult:
+                         logprobs: str = "exact") -> BackendResult:
     """Independent scores, shortlist, explicit choice.
 
     Stage 1: per option, a yes/no read ("Is this option the correct
@@ -119,7 +119,7 @@ async def two_stage_read(backend, request: CompiledQuestion,
     Every engine request gets its own id (`<id>-s1-<i>`, `<id>-s2`):
     stage-1 reads run concurrently and must never share a request id.
 
-    `gather` (`exact` | `top-k`) is how every read gets its markers'
+    `logprobs` (`exact` | `top-k`) is how every read gets its markers'
     logprobs, as in the backend's direct read.
     """
     from . import restricted_softmax
@@ -154,7 +154,7 @@ async def two_stage_read(backend, request: CompiledQuestion,
                 f"two-stage stage-1 slot ids {list(slot_ids[:2])} do not "
                 f"match the yes/no marker ids {[yes_id, no_id]}")
         lp, cached = await _gather(host, engine_input, [yes_id, no_id],
-                                   f"{request_id}-s1-{i}", gather)
+                                   f"{request_id}-s1-{i}", logprobs)
         stage1_cached.append(cached)
         return lp[yes_id] - lp[no_id]
 
@@ -166,7 +166,7 @@ async def two_stage_read(backend, request: CompiledQuestion,
     # ids than it accepts); a top-k read has no per-label limit
     shortlist_cap = limits.shortlist
     limit = getattr(host, "read_limit", None)
-    if gather == "exact" and limit is not None:
+    if logprobs == "exact" and limit is not None:
         shortlist_cap = min(shortlist_cap, limit)
     shortlist = order[: shortlist_cap]
 
@@ -184,7 +184,7 @@ async def two_stage_read(backend, request: CompiledQuestion,
     engine_input, input_tokens = prompt.engine_input, prompt.input_tokens
     slot_ids = prompt.slot_ids
     lp, cached2 = await _gather(host, engine_input, slot_ids,
-                                f"{request_id}-s2", gather)
+                                f"{request_id}-s2", logprobs)
     # slot_ids follow sub_opts order: map token id -> option id
     p2 = restricted_softmax(lp, temperature=1.0)
     p2_by_id = {opt.id: p2[slot_ids[j]]
@@ -224,14 +224,14 @@ async def two_stage_read(backend, request: CompiledQuestion,
 
 
 async def _gather(host, engine_input, token_ids: list[int],
-                  request_id: str, gather: str = "exact"
+                  request_id: str, logprobs: str = "exact"
                   ) -> tuple[dict[int, float], int | None]:
     """Logprobs for exactly `token_ids`. `exact`: restricted gather,
     every id must come back. `top-k`: the top-k window, an id outside it
     scores the window's lowest logprob (at least one id must be inside).
     Returns (logprobs by token id, prompt tokens served from the
     cache)."""
-    if gather == "top-k":
+    if logprobs == "top-k":
         found, floor, result = await host.topk_read(
             engine_input, token_ids, request_id)
         if not found:

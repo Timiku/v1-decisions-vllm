@@ -12,13 +12,13 @@ read: `direct` (one marker per option, up to the marker count),
 `two-stage` (a yes/no read per option, then a direct read of the
 finalists), or `auto` (direct within the marker count, else two-stage).
 
-`gather` picks how a read gets the markers' logprobs: `exact` (the
+`logprobs` picks how a read gets the markers' logprobs: `exact` (the
 engine's logprob_token_ids, every marker exact) or `top-k` (the engine's
 plain top-k window, k = --max-logprobs; a marker outside the window
 scores the window's lowest logprob, an upper bound). top-k needs no
 per-label engine limit and works under speculative decoding, where
 logprob_token_ids reads come back incomplete. The server default is the
-constructor's `gather` (VLLM_TYPED_DECISIONS_BACKEND=logit:gather=top-k),
+constructor's `logprobs` (VLLM_TYPED_DECISIONS_BACKEND=logit:logprobs=top-k),
 `exact` when unset.
 """
 
@@ -32,15 +32,15 @@ from ..protocol import CompiledQuestion
 from . import (BackendError, BackendResult, cached_tokens, option_mass,
                restricted_softmax)
 
-GATHERS = ("exact", "top-k")
+LOGPROBS_MODES = ("exact", "top-k")
 
 
 class LogitOptions(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     readout: Literal["auto", "direct", "wide-direct", "two-stage"] = "auto"
-    # None: the server's default (the backend's constructor `gather`)
-    gather: Literal["exact", "top-k"] | None = None
+    # None: the server's default (the backend's constructor `logprobs`)
+    logprobs: Literal["exact", "top-k"] | None = None
 
 
 class LogitBackend:
@@ -51,13 +51,13 @@ class LogitBackend:
     architectures: tuple[str, ...] = ()   # the fallback for every model
     options_model = LogitOptions
 
-    def __init__(self, host, gather: str = "exact"):
-        if gather not in GATHERS:
+    def __init__(self, host, logprobs: str = "exact"):
+        if logprobs not in LOGPROBS_MODES:
             raise ValueError(
-                f"logit backend: gather must be one of {GATHERS}; "
-                f"got {gather!r}")
+                f"logit backend: logprobs must be one of {LOGPROBS_MODES}; "
+                f"got {logprobs!r}")
         self.host = host
-        self.gather = gather
+        self.logprobs = logprobs
 
     def _options(self, question: CompiledQuestion) -> LogitOptions:
         opts = question.backend_options
@@ -73,8 +73,8 @@ class LogitBackend:
         k = len(question.options)
         options = self._options(question)
         readout = options.readout
-        gather = options.gather or self.gather
-        exact = gather == "exact"
+        mode = options.logprobs or self.logprobs
+        exact = mode == "exact"
         if readout == "auto":
             # direct within the marker count; then wide-direct up to its
             # capacity on this tokenizer, never past the engine's read
@@ -94,7 +94,7 @@ class LogitBackend:
         if readout == "two-stage":
             from .large_choice import two_stage_read
             return await two_stage_read(self, question, request_id, limits,
-                                        gather=gather)
+                                        logprobs=mode)
         if readout == "wide-direct":
             from .large_choice import wide_direct_markers
             markers = wide_direct_markers(self.host.tokenizer,
@@ -109,13 +109,13 @@ class LogitBackend:
             return await self._direct_read(
                 question, request_id, labels=markers[:k],
                 readout_name="wide-direct", layout_name="merged-pairs",
-                gather=gather)
+                logprobs=mode)
         if k > len(limits.markers):
             raise BackendError(
                 f"direct read supports at most {len(limits.markers)} "
                 f"options (the marker count); k={k}. Use readout "
                 "'wide-direct' or 'two-stage' for larger questions.")
-        return await self._direct_read(question, request_id, gather=gather)
+        return await self._direct_read(question, request_id, logprobs=mode)
 
     def _read_limit(self) -> int | None:
         """The engine's restricted-read limit (None = uncapped, e.g. a
@@ -138,22 +138,22 @@ class LogitBackend:
         return (f"{readout} read needs {k} one-pass logprobs but the "
                 f"engine reads at most {limit} "
                 f"(max_logprobs={max_lp}, token-id cap={cap}); raise "
-                f"{raise_setting}, use gather 'top-k' or readout "
+                f"{raise_setting}, use logprobs 'top-k' or readout "
                 f"'two-stage'.")
 
     async def _direct_read(self, question: CompiledQuestion,
                            request_id: str, labels: list[str] | None = None,
                            readout_name: str = "direct",
                            layout_name: str = "direct",
-                           gather: str = "exact") -> BackendResult:
-        """One forward pass over one token per option. gather `exact`:
+                           logprobs: str = "exact") -> BackendResult:
+        """One forward pass over one token per option. logprobs `exact`:
         restricted gather; when it exhausts the host's retries with
         option ids still missing (the engine's transient gather defect,
         or speculative decoding), one top-k read scores the rest: an
-        honest degraded answer, marked in meta. gather `top-k`: one
+        honest degraded answer, marked in meta. logprobs `top-k`: one
         top-k read."""
         prompt = await self.host.render(question, labels=labels)
-        if gather == "top-k":
+        if logprobs == "top-k":
             return await self._window_read(
                 question, prompt, {}, readout_name, layout_name,
                 request_id, prior_passes=0, degraded_missing=None)
@@ -226,7 +226,7 @@ class LogitBackend:
                 "option_mass": option_mass(self.host, read),
                 "readout": readout_name,
                 "label_layout": layout_name,
-                "gather": "top-k",
+                "logprobs": "top-k",
                 "topk_window": self.host.topk_window()}
         if floored:
             meta["floored"] = floored

@@ -260,9 +260,9 @@ class ServingDecisions(BaseServing):
             getattr(engine_client.model_config, "max_logprobs", "none"),
             token_id_cap if token_id_cap is not None else "none")
         logger.info("decision backend: %s", chosen)
-        if getattr(self.decision_backend, "gather", "exact") == "top-k":
+        if getattr(self.decision_backend, "logprobs", "exact") == "top-k":
             logger.info(
-                "logit gather: top-k (window %d = --max-logprobs); "
+                "logit logprobs: top-k (window %d = --max-logprobs); "
                 "direct up to %d, wide-direct up to %d, two-stage beyond",
                 self.host.topk_window(), direct_capacity,
                 self.host.wide_direct_capacity(capped=False))

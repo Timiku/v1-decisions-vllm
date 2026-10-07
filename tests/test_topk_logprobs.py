@@ -1,4 +1,4 @@
-"""gather `top-k`: the logit backend reads option markers from the
+"""logprobs `top-k`: the logit backend reads option markers from the
 engine's plain top-k window (logprobs=k, no logprob_token_ids). No GPU
 (stubs)."""
 from __future__ import annotations
@@ -20,13 +20,13 @@ from test_read_retry import (  # noqa: F401  (no_sleep is a fixture)
     _DirectServing, _RetryEngine, _lp, _question, no_sleep)
 
 
-def _backend(engine, gather="top-k", max_logprobs=20, read_limit=None):
+def _backend(engine, logprobs="top-k", max_logprobs=20, read_limit=None):
     serving = _DirectServing(engine)
     serving.model_config.max_logprobs = max_logprobs  # instance attr only
     host = BackendHost(serving)
     host.read_retries = 0
     host.read_limit = read_limit
-    return LogitBackend(host, gather=gather)
+    return LogitBackend(host, logprobs=logprobs)
 
 
 def _best(res):
@@ -35,11 +35,11 @@ def _best(res):
 
 class TestConstructor:
     def test_default_is_exact(self):
-        assert LogitBackend(object()).gather == "exact"
+        assert LogitBackend(object()).logprobs == "exact"
 
-    def test_bad_gather_refused(self):
+    def test_bad_logprobs_mode_refused(self):
         with pytest.raises(ValueError):
-            LogitBackend(object(), gather="topk")
+            LogitBackend(object(), logprobs="topk")
 
 
 class TestTopkDirect:
@@ -50,7 +50,7 @@ class TestTopkDirect:
         assert getattr(params, "logprob_token_ids", None) is None
         assert params.logprobs == 20          # the window = --max-logprobs
         assert res.forward_passes == 1
-        assert res.meta["gather"] == "top-k"
+        assert res.meta["logprobs"] == "top-k"
         assert res.meta["topk_window"] == 20
         assert "floored" not in res.meta and "degraded" not in res.meta
         assert _best(res) == "o1"
@@ -81,18 +81,18 @@ class TestTopkDirect:
     def test_request_override_to_exact(self, no_sleep):
         engine = _RetryEngine([_lp(65, 66, 67)])
         q = _question(3)
-        q.backend_options = {"gather": "exact"}
+        q.backend_options = {"logprobs": "exact"}
         res = asyncio.run(_backend(engine).read(q, "rid"))
         assert engine.params[-1].logprob_token_ids == [65, 66, 67]
-        assert "gather" not in res.meta
+        assert "logprobs" not in res.meta
 
     def test_request_override_to_topk(self, no_sleep):
         engine = _RetryEngine([_lp(65, 66, 67)])
         q = _question(3)
-        q.backend_options = {"gather": "top-k"}
-        res = asyncio.run(_backend(engine, gather="exact").read(q, "rid"))
+        q.backend_options = {"logprobs": "top-k"}
+        res = asyncio.run(_backend(engine, logprobs="exact").read(q, "rid"))
         assert getattr(engine.params[-1], "logprob_token_ids", None) is None
-        assert res.meta["gather"] == "top-k"
+        assert res.meta["logprobs"] == "top-k"
 
 
 class TestTopkWide:
@@ -114,13 +114,13 @@ class TestTopkWide:
         k = 30
         engine = _RetryEngine([_lp(65, 66, favour=65)] * k
                               + [_lp(*[65 + i for i in range(16)])])
-        backend = _backend(engine, gather="exact", read_limit=20)
+        backend = _backend(engine, logprobs="exact", read_limit=20)
         res = asyncio.run(backend.read(_question(k), "rid"))
         assert res.meta["readout"] == "two-stage"
 
     def test_explicit_wide_direct_exact_over_limit_suggests_topk(
             self, no_sleep):
-        backend = _backend(_RetryEngine([]), gather="exact", read_limit=20)
+        backend = _backend(_RetryEngine([]), logprobs="exact", read_limit=20)
         q = _question(30)
         q.backend_options = {"readout": "wide-direct"}
         with pytest.raises(BackendError) as e:
