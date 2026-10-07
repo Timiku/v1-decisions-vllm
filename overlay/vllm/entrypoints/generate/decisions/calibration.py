@@ -33,7 +33,7 @@ from vllm.entrypoints.generate.decisions.limits import (
     operator_temperature_set,
 )
 from vllm.entrypoints.generate.decisions.protocol import (
-    CompiledQuestion, DecisionOption, DecisionsRequest)
+    CompiledQuestion, DecisionOption, DecisionsQuery)
 
 logger = init_logger(__name__)
 def vllm_version() -> str:
@@ -137,7 +137,7 @@ async def run_questions(serving, rows: list[dict], backend_name: str | None,
             body = {"state": row["state"], "model": "calibration",
                     "questions": {"decision": _wire_question(row)}}
             try:
-                request = DecisionsRequest(**body)
+                request = DecisionsQuery(**body)
                 compiled = _compile_one(request)
                 backend = serving.decision_backend
                 result = await backend.read(
@@ -164,7 +164,7 @@ async def run_questions(serving, rows: list[dict], backend_name: str | None,
     return pairs, skipped
 
 
-def _compile_one(request: DecisionsRequest) -> CompiledQuestion:
+def _compile_one(request: DecisionsQuery) -> CompiledQuestion:
     from vllm.entrypoints.generate.decisions.compile import compile_question
     return compile_question(request, "decision")
 

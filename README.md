@@ -4,7 +4,7 @@ This repository proposes a first-class vLLM endpoint, **/v1/decisions**. It unif
 
 A typed decision returns a probability distribution over a fixed set of options instead of generated text. You send a state (the evidence) and one or more typed questions. For each question, the server reads the answer from the model's logits in a single forward pass and returns calibrated probabilities.
 
-/v1/decisions is the full, modular endpoint: typed questions plus per-request calibration, backend selection and options, a seed, and diagnostics. Backends and question types are both pluggable. /v1/systemone speaks the request format of TypeSafe's Jev API, so existing Jev clients can point at a self-hosted model. It is a projection of /v1/decisions: the same answers, reduced to Jev's fields.
+/v1/decisions speaks OpenAI's Decisions format, so a client built with the OpenAI SDK can point at a self-hosted model. Everything OpenAI's format has no field for (per-request calibration, backend selection and options, a seed, and diagnostics) goes in an `extra` block. Backends and question types are both pluggable. /v1/systemone speaks the request format of TypeSafe's Jev API, so existing Jev clients can point at a self-hosted model too. Both are answered by the same code path: the same question gives the same probabilities on either endpoint.
 
 The endpoint is proposed for upstream vLLM. This repository contains a patch with all the changes demonstrating the
 reference implementation, built as an overlay on stock vLLM **v0.30.0**.
@@ -29,7 +29,7 @@ vendored patch from [#57250](https://github.com/vllm-project/vllm/pull/57250).
 The server picks a backend at startup. It uses `VLLM_TYPED_DECISIONS_BACKEND`
 if set. Otherwise it uses the backend that claims the served model's
 architecture, and falls back to `logit`. A request can choose another
-loaded backend with `backend`.
+loaded backend with `extra.backend`.
 
 A new backend is one class: a `name`, the architectures it serves, and a
 `read(question, request_id)` method that returns a score per option.
@@ -180,11 +180,11 @@ apply them to a v0.30.0 source checkout.
 
 ## Limits
 
-Every limit is a startup setting and applies to both endpoints and both
-request forms. Defaults: 255 options per choice question (Jev's limit),
-10 score levels, 64 questions per request. A request over a limit is
-refused with 422 before any model work, and the message names the
-setting to change.
+Every limit is a startup setting and applies to both endpoints.
+Defaults: 255 options per choice question (Jev's limit), 10 score
+levels, 64 questions per request. A request over a limit is refused
+before any model work (400 on `/v1/decisions`, 422 on `/v1/systemone`),
+and the message names the setting to change.
 
 ### Read limits
 
@@ -254,7 +254,7 @@ wide-direct was more accurate than two-stage on Qwen3-4B (+0.12 pooled,
 (+0.06 at 124). It takes one pass instead of k+1, and on the 4B it
 answered about 2× faster at 64 and 255 options.
 
-Pick one per request with `"backend_options": {"readout": "auto" | "direct" | "wide-direct" | "two-stage"}`. (A two-step "prefixed" read
+Pick one per request with `"extra": {"backend_options": {"readout": "auto" | "direct" | "wide-direct" | "two-stage"}}`. (A two-step "prefixed" read
 was also tried; it lost to wide-direct and was removed.)
 
 #### Logprobs: `exact` or `top-k`
@@ -276,7 +276,7 @@ works under speculative decoding.
 
 Set the server default with
 `VLLM_TYPED_DECISIONS_BACKEND=logit:logprobs=exact`, or per request with
-`"backend_options": {"logprobs": "exact"}`. The startup log names the
+`"extra": {"backend_options": {"logprobs": "exact"}}`. The startup log names the
 window: `logit logprobs: top-k (window 20 = --max-logprobs); ...`.
 
 Measured on Qwen3.8-27B INT4, stock vLLM v0.30.0 with the default
@@ -320,97 +320,93 @@ more options than markers.
 
 ## `POST /v1/decisions`
 
+OpenAI's Decisions format (OpenAI's public beta of 2026-10-06), plus an
+`extra` block for everything OpenAI's format has no field for. A client
+built with the OpenAI SDK works unchanged (`client.decisions.create(...)`
+with `base_url` pointing at the server); the `extra` block goes in
+`extra_body`. Where OpenAI leaves behaviour open, the endpoint does what
+vLLM's own draft of the API does
+([#60465](https://github.com/vllm-project/vllm/pull/60465)). The
+deliberate differences are listed in
+[Differences from OpenAI and from upstream](#differences-from-openai-and-from-upstream).
+
 ### Request
 
-A request is a state plus a map of typed questions, each under an id you
-choose. Answers come back under the same ids.
-
 ```jsonc
 {
-  "state": "Ticket: My payouts have been failing for 3 days.",
-  "questions": {
-    "is_urgent":   {"type": "noul",   "instructions": "Does this convey urgency?",
-                    "criteria": {"true": "Explicitly time-sensitive", "false": "No urgency expressed"}},
-    "department":  {"type": "choice", "instructions": "Which team?",
-                    "criteria": {"billing": "Payments, refunds", "technical": "Bugs, outages"}},
-    "frustration": {"type": "score",  "instructions": "How frustrated is the customer?",
-                    "criteria": ["Calm", "Frustrated", "Very angry"]}
-  }
-}
-```
-
-**One-question shorthand.** For a single question you can send `question`
-and an `options` list instead of `questions`. The server rewrites it into
-`questions: {"decision": …}` while parsing the request, so it behaves
-exactly like the typed form, and the answer comes back under
-`"decision"`.
-
-```jsonc
-{
-  "state": "The patient reports chest pain radiating to the left arm.",
-  "question": "Which diagnosis fits best?",
-  "options": [
-    {"id": "cardiac",         "description": "Symptoms suggest an acute cardiac event"},
-    {"id": "musculoskeletal", "description": "Pain is musculoskeletal in origin"},
-    {"id": "reflux",          "description": "Symptoms suggest GERD"}
+  "model": "Qwen/Qwen3.8-27B",
+  "input": "Ticket: My payouts have been failing for 3 days.",
+  "questions": [
+    {"type": "predicate", "name": "is_urgent",
+     "instructions": "Does this convey urgency?"},
+    {"type": "choice", "name": "department", "instructions": "Which team?",
+     "choices": [{"value": "billing", "description": "Payments, refunds"},
+                 {"value": "technical", "description": "Bugs, outages"}]},
+    {"type": "score", "name": "frustration",
+     "instructions": "How frustrated is the customer?",
+     "levels": [{"label": "Calm"}, {"label": "Frustrated"},
+                {"label": "Very angry", "description": "threatens to leave"}]}
   ],
-  "qtype": "choice"   // optional: inferred as noul when the ids are exactly true/false
+  "extra": {"calibration_temperature": 1.2, "detail": "basic"}   // optional
 }
 ```
-
-With `qtype: "noul"` the option ids must be `true`/`false`; with
-`qtype: "score"` they must be `"0"`…`"k-1"` in order.
-
-**Question types.** Jev's three are built in; more can be added without
-changing the core (see [Extending the API](#extending-the-api)).
-
-|Type|`criteria`|Answer fields|
-|-|-|-|
-|`noul`|optional `{"true": …, "false": …}` descriptions|`noul`: P(true)|
-|`choice`|option id → description (or `null`), 2 to 255 options|`choice`: the most probable id|
-|`score`|ordered list of 2 to 10 level descriptions; level ids are `"0"`…`"k-1"`|`score`: Σ i·pᵢ, can fall between levels; `legend`: level id → description|
-
-Request fields:
 
 |Field|Default|Meaning|
 |-|-|-|
-|`state`|required|String, or JSON object/array rendered verbatim|
-|`questions`|required (or the shorthand)|Id → typed question|
-|`model`|none|Echoed in the response; `jev-latest` / `jev-preview` resolve to `jev-1.13.0`|
+|`model`|required|Echoed in the response; `jev-latest` / `jev-preview` resolve to `jev-1.13.0`. The served checkpoint is whatever vLLM loaded|
+|`input`|required|A string, or a list of user messages whose `content` is a string or `input_text` parts. Parts are joined with a newline, messages with a blank line. `input_image` is refused: no backend reads images yet|
+|`questions`|required|1 to 200 questions (and at most the server's limit, 64 by default), answered in order|
+|`safety_identifier`|none|Accepted (up to 128 characters) and ignored|
+|`extra`|`{}`|Our settings, below|
+
+**Question types.**
+
+|Type|Fields|Answer fields|
+|-|-|-|
+|`predicate`|`instructions`, `name?`|`probability`: P(true)|
+|`choice`|`instructions`, `name?`, `choices`: 2 to 255 of `{value, description?}`; a value is a string or a boolean, and `"true"` and `true` are different choices|`choice`: the most probable value; `probabilities`: `[{value, probability}]` in choice order; `confidence`|
+|`score`|`instructions`, `name?`, `levels`: 2 to 10 of `{label, description?}`, lowest first|`score`: Σ i·pᵢ over level indices, can fall between levels; `probabilities`: `[{value: i, label, probability}]`; `confidence`|
+
+Each question is read as one of Jev's question types (a predicate as a
+`noul` without criteria, a choice as a `choice`, a score as a `score`),
+so it renders exactly as the same Jev question does and the saved
+calibration applies. A choice without a description renders as its
+value; a level renders as its label, or `label: description`.
+
+**`extra` (request).**
+
+|Field|Default|Meaning|
+|-|-|-|
 |`calibration_temperature`|the server's T|T > 0; probabilities are `softmax(scores / T)`. See [Calibration](#calibration)|
 |`backend`|startup backend|`logit`, `encoder`, `canvas`, or a registered plugin|
 |`backend_options`|none|Settings for that backend, validated by it. `logit`: `readout`, `logprobs`. `canvas`: `samples`, `max_steps`. `encoder`: none. A backend that takes none refuses any|
 |`seed`|none|Seeds backends that sample (`canvas`); ignored by the others|
-|`extra`|`"full"`|How much of each answer's `extra` to return: one level for both blocks, or a map per block, e.g. `{"audit": "full", "backend": "none"}`. Levels: `full`; `basic` (without per-option lists such as `option_logits`); `none` (leave the block out)|
+|`detail`|`"full"`|How much of each answer's `extra` to return: one level for both blocks, or a map per block, e.g. `{"audit": "full", "backend": "none"}`. Levels: `full`; `basic` (without per-option lists such as `option_logits`); `none` (leave the block out)|
 
-Validation:
-
-* Option ids must be unique; limits are in [Limits](#limits).
-* Unknown top-level fields are ignored. Unknown fields inside a question
-are refused, since a misspelled key would change the prompt.
-* Invalid requests return 422.
+**Validation.** As in #60465: unknown fields are refused everywhere
+(ours go under `extra`), an explicit `"name": null` is refused, choice
+values must be distinct by type and value, and names need not be
+unique. Limits are in [Limits](#limits). An invalid request returns 400.
 
 ### Response
 
 ```jsonc
 {
-  "id": "decisions-6f1c…",
-  "object": "decisions",
-  "created": 1790000000,
-  "model": "Qwen/Qwen3.5-0.8B",
-  "answers": {
-    "department": {
-      "type": "choice",
-      "probabilities": {"billing": 0.87, "technical": 0.13},
-      "choice": "billing",
+  "model": "Qwen/Qwen3.8-27B",
+  "answers": [
+    {"type": "predicate", "name": "is_urgent", "probability": 0.91, "extra": {…}},
+    {
+      "type": "choice", "name": "department", "choice": "billing",
+      "probabilities": [{"value": "billing", "probability": 0.87},
+                        {"value": "technical", "probability": 0.13}],
       "confidence": 0.74,
       "extra": {
         "backend": {
           "name": "logit",
-          "option_logits": {"billing": -0.21, "technical": -2.11}
+          "option_logits": {"\"billing\"": -0.21, "\"technical\"": -2.11}
         },
         "audit": {
-          "served_model": "Qwen/Qwen3.5-0.8B",
+          "served_model": "Qwen/Qwen3.8-27B",
           "state_sha256": "3f89c2…",
           "confidence_formula": "normalized-peak-v1",
           "render_version": "2026-09-29.1",
@@ -424,39 +420,60 @@ are refused, since a misspelled key would change the prompt.
           "label_layout": "direct"
         }
       }
-    }
+    },
+    {"type": "refusal", "name": "frustration", "extra": {"error": "…"}}
+  ],
+  "usage": {
+    "input_tokens": 309,
+    "input_tokens_details": {"cached_tokens": 192, "cache_write_tokens": 0},
+    "output_tokens": 0,
+    "output_tokens_details": {"reasoning_tokens": 0},
+    "total_tokens": 309
   },
-  "usage": {"input_tokens": 103, "cached_input_tokens": 96, "output_tokens": 0}
+  "extra": {"id": "decisions-6f1c…", "created": 1790000000}
 }
 ```
 
-* `model` is the request's `model` with aliases resolved, or the served
-model's name when the request named none. The checkpoint that actually
-answered is always in `audit.served_model`.
-* Every answer has the same core fields on every backend and question type:
+* Answers come back in question order, each with its `name` (`null`
+when the question had none).
+* `confidence`: `(k·max − 1) / (k − 1)` over the calibrated
+probabilities. 1.0 means all mass on one option; 0.0 means uniform.
+OpenAI doesn't publish its formula; `audit.confidence_formula` names
+ours.
+* **Refusals.** Questions in one request run concurrently. A question
+that fails (for example, more options than its read can hold) comes back
+as a `refusal` answer, OpenAI's answer type for a declined question,
+with the reason in `extra.error` (kept at every `detail`). The other
+questions still answer. When every question fails, the request fails:
+it returns the first failure in question order, with that failure's
+status code.
+* `usage` is OpenAI's shape. `input_tokens` sums the answers' prompt
+tokens; `cached_tokens` is how many of those the engine served from its
+prefix cache (0 when the backend can't tell). A multi-question request
+over one input shows the saving directly: after the first question,
+most of each prompt comes from the cache. `output_tokens` is 0: no
+answer text is generated beyond a one-step decode (`logit`) or a canvas
+read (`canvas`), which aren't counted.
+* `extra.id` and `extra.created` identify the response.
 
-  * `type`;
-  * `probabilities`: calibrated distribution over the option ids; sums to 1;
-  * the type's own answer fields (see the question-type table);
-  * `confidence`: `(k·max − 1) / (k − 1)` over `probabilities`. 1.0 means
-all mass on one option; 0.0 means uniform.
-* `extra` has two blocks:
+**`extra` (answer)** has two blocks, trimmed by the request's `detail`:
 
-  * `backend`: what the backend did. Always `name` and `option_logits`
-(the raw score per option; `softmax(option_logits)` is the
-uncalibrated distribution), plus the backend's own facts: the logit
-backend's `logprobs` and `topk_window` on a `top-k` read, `floored` (options
-outside the window, scored at its floor), `degraded` and
-`degraded_reason` on a fallback read; two-stage's
+* `backend`: what the backend did. Always `name` and `option_logits`
+(the raw score per option, keyed by the option's id: a choice value as
+JSON text, `true`/`false` for a predicate, `"0"`… for score levels;
+`softmax(option_logits)` is the uncalibrated distribution), plus the
+backend's own facts: the logit backend's `logprobs` and `topk_window` on
+a `top-k` read, `floored` (options outside the window, scored at its
+floor), `degraded` and `degraded_reason` on a fallback read; two-stage's
 `stage1_scores` and `shortlist`, canvas's `seed`, `samples` and
 `canvas_width`, the encoder's `prompt_source`, or a plugin's fields.
-  * `audit`: the same facts on every backend, to check how the answer was
+* `audit`: the same facts on every backend, to check how the answer was
 produced:
 
 |`audit` field|Meaning|
 |-|-|
 |`served_model`|The checkpoint that answered|
-|`state_sha256`|SHA-256 of the state as sent|
+|`state_sha256`|SHA-256 of the input as read (the joined text)|
 |`confidence_formula`|Which confidence statistic was used|
 |`render_version`|Version of the prompt layout. It changes whenever the rendered prompt would change, which also invalidates saved calibration results|
 |`calibration_temperature`|T actually applied (1.0 = raw)|
@@ -468,40 +485,70 @@ produced:
 |`readout`|Which read produced the answer (`direct`, `wide-direct`, `two-stage`, `direct-degraded` for the fallback after an incomplete `exact` read, or a plugin's name)|
 |`label_layout`|How the options were labelled (`direct` letters, or `merged-pairs` for wide-direct)|
 
-`usage.input_tokens` and `usage.cached_input_tokens` sum the answers' values.
-A multi-question request over one state shows the saving directly: after
-the first question, most of each prompt comes from the cache.
-`usage.output_tokens` is always 0: no answer text is returned. The engine
-does run a one-step decode (`logit`) or a canvas read (`canvas`); those
-aren't counted.
+### Differences from OpenAI and from upstream
 
-**Partial failures.** Questions in one request run concurrently. A
-question that fails (for example, more options than its read can hold) is
-listed in `partial_failures: {id: message}` and the other questions still
-answer. The request fails only when every question failed; it then
-returns the first failure in request order, with that failure's status
-code. `partial_failures` is omitted when every question succeeded.
+Same as vLLM's draft (#60465): the request fields, refusing unknown
+fields, the input joining, refusing images, the name rules, typed choice
+values, 2 to 10 levels, the score as a weighted average of level
+indices, OpenAI's usage shape, and answers in question order.
+
+Deliberately different, each one additive (a client that ignores
+`extra` sees a normal OpenAI response):
+
+||OpenAI / #60465|This endpoint|Why|
+|-|-|-|-|
+|`extra` block|none / refused|accepted on the request, returned on answers and the response|backends, calibration and the audit need a place|
+|Choices per question|not stated / 26 (255 in its schema)|255 (`VLLM_TYPED_DECISIONS_MAX_OPTIONS`); past the marker count the `logit` backend reads wide-direct, `top-k` past the [read limits](#read-limits)|measured: see [Logprobs](#logprobs-exact-or-top-k)|
+|Questions per request|not stated / 200|200, and at most the server's limit (64 by default)|unchanged from 0.1|
+|`confidence`|unpublished / p_top × option mass|normalized peak after calibration|same numbers as `/v1/systemone`|
+|A failed question|a question may be declined as a `refusal` / whole request fails|`refusal` answer with `extra.error`; the request fails only when every question failed|one bad question shouldn't lose the rest|
+|Prompt renders|unpublished / own renders|Jev's renders, byte for byte|the saved calibration stays valid|
+|Invalid request|400 / 400|400|same|
+|Images|accepted / refused|refused|no backend reads images yet|
+|Backends, calibration, startup self-check|n/a / logit only, none|`logit`, `encoder`, `canvas`, plugins; startup calibration; answer-slot self-check|the point of this package|
 
 ## `POST /v1/systemone`
 
 The Jev request and response format. A request is
-`{model, state, questions}` (plus an optional `backend`), with the typed
-`questions` block shown above. Only question types that are part of Jev
-(noul, choice, score) are accepted.
+`{model, state, questions}` (plus an optional `backend`), where
+`questions` maps an id you choose to a typed question:
 
-It is a projection of `/v1/decisions`: the server answers the request
-through exactly the same path, then keeps only Jev's fields. The answers,
-limits, temperature (the server's T) and partial-failure behaviour are
-identical; `tests/test_unify.py` holds that as a contract.
+```jsonc
+{
+  "model": "jev-latest",
+  "state": "Ticket: My payouts have been failing for 3 days.",
+  "questions": {
+    "is_urgent":   {"type": "noul",   "instructions": "Does this convey urgency?",
+                    "criteria": {"true": "Explicitly time-sensitive", "false": "No urgency expressed"}},
+    "department":  {"type": "choice", "instructions": "Which team?",
+                    "criteria": {"billing": "Payments, refunds", "technical": "Bugs, outages"}},
+    "frustration": {"type": "score",  "instructions": "How frustrated is the customer?",
+                    "criteria": ["Calm", "Frustrated", "Very angry"]}
+  },
+  "extra": {"detail": "none"}   // optional, as on /v1/decisions
+}
+```
 
-* `noul`: `{type, noul}`, with no confidence, as in Jev.
-* `choice`: `{type, choice, probabilities, confidence}`.
-* `score`: `{type, score, legend, probabilities, confidence}`, with
-string-keyed levels.
+|Type|`criteria`|Answer fields|
+|-|-|-|
+|`noul`|optional `{"true": …, "false": …}` descriptions|`noul`: P(true)|
+|`choice`|option id → description (or `null`), 2 to 255 options|`choice`, `probabilities` (id → p), `confidence`|
+|`score`|ordered list of 2 to 10 level descriptions; level ids are `"0"`…`"k-1"`|`score`, `legend` (level id → description), `probabilities`, `confidence`|
 
-The response also carries `id` (`systemone-…`), `created`, `model`,
-`usage` and, when some question failed, `partial_failures`. For
-diagnostics, send the same `questions` block to `/v1/decisions`.
+Only Jev's question types are accepted. The server answers through
+exactly the same path as `/v1/decisions`, then keeps Jev's fields: the
+same question gives the same probabilities on both endpoints
+(`tests/test_unify.py` and `tests/test_openai_wire.py` hold that as a
+contract).
+
+The request may carry the same `extra` block as `/v1/decisions`
+(`calibration_temperature`, `backend`, `backend_options`, `seed`,
+`detail`), and each answer carries `extra` (`audit`, `backend`) at that
+`detail`, `full` by default; send `"extra": {"detail": "none"}` for
+Jev's answer fields only. `backend` may be sent at the top level (as
+before) or under `extra`, not both. The response also carries `id`
+(`systemone-…`), `created`, `model`, `usage` and, when some question
+failed, `partial_failures: {id: message}`.
 
 ### Differences from the Jev API
 
@@ -510,10 +557,10 @@ diagnostics, send the same `questions` block to `/v1/decisions`.
 |Choice options|up to 255|up to 255 (`VLLM_TYPED_DECISIONS_MAX_OPTIONS`); more than the marker count uses the wide-direct read on the `logit` backend (read `top-k` past the [read limits](#read-limits) with `exact`)|
 |Structured `instructions`|field references resolved natively|rendered as JSON; backtick references stay literal text|
 |`model`|selects a Jev model|a label only. `jev-latest` and `jev-preview` are echoed as `jev-1.13.0`; other ids are echoed unchanged. The served checkpoint is whatever vLLM loaded.|
-|Calibration|server-side|server-side: the operator's T or the startup calibration (see [Calibration](#calibration)); no per-request override on this wire|
+|Calibration|server-side|server-side: the operator's T or the startup calibration (see [Calibration](#calibration)); a request may override it with `extra.calibration_temperature`|
 |Partial failure|whole request fails|successful answers return; failed ones are listed in `partial_failures`|
-|Extra response fields|none|`id`, `created`|
-|`/v1/decisions`-only fields|n/a|`calibration_temperature`, `seed`, `backend_options`, `extra`, `question`, `options`, `qtype` are refused with 422|
+|Extra response fields|none|`id`, `created`, and each answer's `extra` (unless `detail` is `none`)|
+|Settings at the top level|n/a|`calibration_temperature`, `seed`, `backend_options` are refused with 422: send them under `extra`|
 
 Validation errors return 422.
 
@@ -678,12 +725,12 @@ workload. The server therefore fits its own T at startup.
 
 ### Which T an answer gets
 
-Highest first. The same rule applies to both endpoints, both request
-forms, every backend and every readout.
+Highest first. The same rule applies to both endpoints, every backend
+and every readout.
 
 |#|Source|`audit.temperature_source`|
 |-|-|-|
-|1|The request's `calibration_temperature` (`/v1/decisions` only)|`request`|
+|1|The request's `extra.calibration_temperature`|`request`|
 |2|`VLLM_TYPED_DECISIONS_TEMPERATURE`, set by the operator (startup calibration is then skipped)|`server`|
 |3|The startup calibration result|`calibrated`|
 |4|1.0, raw probabilities (calibration off or failed)|`default`|
@@ -886,12 +933,13 @@ public set and scored 0.856 on the hard tier.
 The full API could have been `/v1/systemone` with extra fields. It is
 a separate endpoint for these reasons:
 
-* **Compatibility stays exact.** `/v1/systemone` accepts and returns
-exactly Jev's schema and refuses anything else, so a Jev client gets
-the behaviour it was written for. The extra fields (per-request
-temperature, backend choice and options, seed, `extra` diagnostics, the
-one-question shorthand) live on `/v1/decisions`, where a client opts
-into them knowingly. Neither schema has to bend to fit the other.
+* **Each wire matches a published format.** `/v1/decisions` takes and
+returns OpenAI's Decisions format; `/v1/systemone` takes and returns
+Jev's. A client written for either gets the behaviour it expects. Our
+additions (per-request temperature, backend choice and options, seed,
+diagnostics) sit in one `extra` block on both, which a client of either
+format never has to send or read. Neither schema has to bend to fit the
+other.
 * **The design is modular and open.** Question types and backends are
 plugins: anyone can add a new kind of question or a new decision model
 without touching the core. Jev is one example of a decision API, 
@@ -899,29 +947,34 @@ but is not feature-complete or open-source.
 * **Raw probabilities and an audit trail are part of the API.** Every
 answer can carry the backend's raw per-option scores
 (`extra.backend.option_logits`; their softmax is the uncalibrated
-distribution) next to the calibrated `probabilities`, and an `audit`
+distribution) next to the calibrated probabilities, and an `audit`
 block with the same schema on every backend: the model that answered,
-a hash of the state, the prompt version, the T applied and where it
+a hash of the input, the prompt version, the T applied and where it
 came from, the read used, forward passes, prompt and cached tokens,
 and `option_mass` (how sure the model was that an option was the
 answer at all). A caller can recalibrate, verify or debug an answer
 without trusting the server's summary, and choose how much of this to
-receive (`extra`: `full`, `basic`, `none`). Jev's schema has no place
-for any of it, so it lives on `/v1/decisions`.
+receive (`extra.detail`: `full`, `basic`, `none`). Neither OpenAI's
+nor Jev's schema has a place for any of it, so it lives in `extra`.
 * **The name says what it does.** vLLM's routes name what they return
 (`/v1/completions`, `/v1/embeddings`), and `/v1/decisions` follows
-that. `systemone` is a product-specific name (it evokes "System 1"
-fast thinking) and says little to someone reading vLLM's route list.
-* **The Jev wire can follow Jev.** If TypeSafe changes its API,
-`/v1/systemone` follows it without breaking `/v1/decisions` clients,
-and `/v1/decisions` can grow without waiting on a third party's spec.
-* **One implementation, two views.** `/v1/systemone` is answered through
-`/v1/decisions` and trimmed to Jev's fields, so the second endpoint
-adds no second code path. `tests/test_unify.py` holds the two to the
-same answers.
-* **It is easier to propose upstream.** A neutral, modular endpoint is a
-better fit for vLLM than a route named after another vendor's product.
-The Jev-compatible route can then be kept or dropped on its own merits.
+that; since 2026-10-06 it is also OpenAI's name for this API.
+`systemone` is a product-specific name (it evokes "System 1" fast
+thinking) and says little to someone reading vLLM's route list.
+* **Each wire can follow its owner.** If OpenAI or TypeSafe changes its
+API, the matching endpoint follows it without breaking the other's
+clients.
+* **One implementation, two views.** Both endpoints turn their request
+into one internal query, answered by one code path, and project the
+result into their own format. The second endpoint adds no second
+code path; `tests/test_unify.py` and `tests/test_openai_wire.py` hold
+the two to the same answers.
+* **It is close to upstream.** vLLM's own draft
+([#60465](https://github.com/vllm-project/vllm/pull/60465)) puts
+OpenAI's format at `/v1/decisions` over the structured-decisions core
+([#59299](https://github.com/vllm-project/vllm/pull/59299)). This
+endpoint behaves like it wherever OpenAI leaves behaviour open, so
+the additions above can be offered as small follow-ups to it.
 
 ## Lineage
 

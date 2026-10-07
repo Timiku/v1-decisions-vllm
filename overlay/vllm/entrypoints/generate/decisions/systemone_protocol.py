@@ -2,11 +2,11 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """SystemOne (Jev-compatible) wire: the Jev request and response shapes.
 
-`/v1/systemone` is a projection of `/v1/decisions`: the request is
-validated here (Jev's fields, and only the question types marked `jev`
-in the registry), answered by the decisions path, and each answer is
-reduced to its type's `jev_fields`. Nothing is computed differently for
-this wire.
+`/v1/systemone` answers through the same path as `/v1/decisions`: the
+request is validated here (Jev's fields, and only the question types
+marked `jev` in the registry), plus the same `extra` block as
+`/v1/decisions`; each answer is reduced to its type's `jev_fields` and
+its `extra`. Nothing is computed differently for this wire.
 
 Differences from the hosted Jev API are listed in the README under
 "Differences from the Jev API".
@@ -20,14 +20,14 @@ from pydantic import Field, field_validator, model_validator
 
 from vllm.utils import random_uuid
 
+from .openai_protocol import DecisionsExtra
 from .protocol import OpenAIBaseModel, check_question_count
 from .question_types import parse_questions
 
-# /v1/decisions request fields that are not part of the Jev wire. Sending
-# one here is an error rather than a silently ignored field.
-DECISIONS_ONLY_FIELDS = ("calibration_temperature", "seed",
-                         "backend_options", "extra", "question", "options",
-                         "qtype")
+# Settings that are not Jev fields: on this wire they go under `extra`.
+# Sending one at the top level is an error rather than a silently ignored
+# field.
+EXTRA_ONLY_FIELDS = ("calibration_temperature", "seed", "backend_options")
 
 
 class SystemOneRequest(OpenAIBaseModel):
@@ -42,6 +42,10 @@ class SystemOneRequest(OpenAIBaseModel):
     backend: str | None = Field(
         default=None, description="Readout backend override (logit | "
         "encoder | canvas | <plugin>) for every question in the request.")
+    extra: DecisionsExtra = Field(
+        default_factory=DecisionsExtra,
+        description="Settings that are not Jev fields, as on "
+        "/v1/decisions; answers carry `extra` at its `detail`.")
 
     @field_validator("questions", mode="before")
     @classmethod
@@ -55,14 +59,21 @@ class SystemOneRequest(OpenAIBaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def _reject_decisions_fields(cls, data):
+    def _reject_top_level_settings(cls, data):
         if isinstance(data, dict):
-            for name in DECISIONS_ONLY_FIELDS:
+            for name in EXTRA_ONLY_FIELDS:
                 if name in data:
                     raise ValueError(
-                        f"{name} is not part of the Jev wire; use "
-                        "/v1/decisions")
+                        f"{name} is not a Jev field; send it under "
+                        "`extra`")
         return data
+
+    @model_validator(mode="after")
+    def _backend_in_one_place(self):
+        if self.backend is not None and self.extra.backend is not None:
+            raise ValueError("send backend at the top level or under "
+                             "`extra`, not both")
+        return self
 
 
 class SystemOneUsage(OpenAIBaseModel):
@@ -77,7 +88,8 @@ class SystemOneResponse(OpenAIBaseModel):
     answers: dict[str, dict[str, Any]] = Field(
         ..., description="Each answer: `type` plus its type's Jev fields "
         "(noul: noul; choice: choice, probabilities, confidence; score: "
-        "score, legend, probabilities, confidence).")
+        "score, legend, probabilities, confidence), plus `extra` at the "
+        "request's detail.")
     usage: SystemOneUsage
     partial_failures: dict[str, str] | None = Field(
         default=None, description="qid -> error for questions that failed; "

@@ -22,7 +22,7 @@ from vllm.entrypoints.generate.decisions.answer_slot import (
     SlotError, answer_slots, closing_suffix, encode_suffix, knows_suffix)
 from vllm.entrypoints.generate.decisions.limits import (
     DecisionLimits, set_limits_for_tests)
-from vllm.entrypoints.generate.decisions.protocol import DecisionsRequest
+from vllm.entrypoints.generate.decisions.protocol import DecisionsQuery
 from vllm.entrypoints.generate.decisions.serving import ServingDecisions
 from vllm.entrypoints.serve.engine.protocol import ErrorResponse
 
@@ -258,7 +258,7 @@ BODY = {"state": "s", "questions": {"q": {
 
 
 def _ask(s):
-    return asyncio.run(s.create_decisions(DecisionsRequest(**BODY)))
+    return asyncio.run(s.answer_query(DecisionsQuery(**BODY)))
 
 
 def _probes(engine):
@@ -381,7 +381,7 @@ def test_scheduled_startup_runs_once_in_a_running_loop():
                              request_logger=None, default_backend="logit")
         assert s.startup.starting is True
         # first request: the background work is running, the request 503s
-        r = await s.create_decisions(DecisionsRequest(**BODY))
+        r = await s.answer_query(DecisionsQuery(**BODY))
         assert isinstance(r, ErrorResponse) and r.error.code == 503
         # wait for the background work to finish
         while s.startup.starting:

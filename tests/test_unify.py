@@ -2,12 +2,12 @@
 
 - golden: every pinned wire body renders byte-identically to the
   pre-unify code (tests/golden/renders-8bd7268.json);
-- one form: the one-question shorthand and a one-entry `questions` map
-  compile, render and answer identically;
-- one set of limits for every form and both endpoints;
+- one internal query form (the one-question shorthand is gone);
+- one set of limits for both endpoints;
 - temperature: server default, request override, applied once;
 - partial failures, 422s, model echo, removed fields;
-- /v1/systemone == project(/v1/decisions).
+- /v1/systemone == the Jev projection of the internal result
+  (the OpenAI projection: tests/test_openai_wire.py).
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from vllm.entrypoints.generate.decisions.backends import (
 from vllm.entrypoints.generate.decisions.compile import compile_question
 from vllm.entrypoints.generate.decisions.limits import (
     DecisionLimits, set_limits_for_tests)
-from vllm.entrypoints.generate.decisions.protocol import DecisionsRequest
+from vllm.entrypoints.generate.decisions.protocol import DecisionsQuery
 from vllm.entrypoints.generate.decisions.serving import ServingDecisions
 from vllm.entrypoints.generate.decisions.systemone_protocol import (
     SystemOneRequest)
@@ -140,7 +140,7 @@ def _run(coro):
 
 
 def _renders(serving, body):
-    req = DecisionsRequest(**body)
+    req = DecisionsQuery(**body)
     out = []
     for qid in req.questions:
         q = compile_question(req, qid)
@@ -165,61 +165,18 @@ def test_render_matches_pre_unify_golden(case):
 
 
 # ---------------------------------------------------------------------
-# one form
+# one internal query form
 # ---------------------------------------------------------------------
 
-SHORT = {"state": "s", "question": "Which?",
-         "options": [{"id": "a", "description": "Alpha"},
-                     {"id": "b", "description": "Beta"},
-                     {"id": "c", "description": "Gamma"}]}
 TYPED = {"state": "s", "questions": {"decision": {
     "type": "choice", "instructions": "Which?",
     "criteria": {"a": "Alpha", "b": "Beta", "c": "Gamma"}}}}
 
 
-def test_shorthand_expands_to_one_entry_questions():
-    assert (DecisionsRequest(**SHORT).questions
-            == DecisionsRequest(**TYPED).questions)
-
-
-def test_shorthand_and_typed_render_identically():
-    s = _make()
-    assert _renders(s, SHORT) == _renders(s, TYPED)
-
-
-def test_shorthand_and_typed_answer_identically():
-    name = _fake_backend()
-    s = _make(backend=name)
-    a = _run(s.create_decisions(DecisionsRequest(**SHORT)))
-    b = _run(s.create_decisions(DecisionsRequest(**TYPED)))
-    for r in (a, b):
-        r.pop("id"), r.pop("created")
-    assert a == b
-
-
-def test_shorthand_noul_score_inference():
-    noul = DecisionsRequest(state="s", question="q", options=[
-        {"id": "false", "description": "no"},
-        {"id": "true", "description": "yes"}])
-    q = noul.questions["decision"]
-    assert q.type == "noul"
-    # noul always renders true first, whatever order the options came in
-    assert [o.id for o in compile_question(noul, "decision").options] \
-        == ["true", "false"]
-    score = DecisionsRequest(state="s", question="q", qtype="score",
-                             options=[{"id": "0", "description": "lo"},
-                                      {"id": "1", "description": "hi"}])
-    assert score.questions["decision"].criteria == ["lo", "hi"]
-
-
 @pytest.mark.parametrize("body", [
-    {**SHORT, "questions": TYPED["questions"]},          # both forms
-    {"state": "s", "question": "q"},                     # no options
-    {**SHORT, "options": [{"id": "a", "description": "A"},
-                          {"id": "a", "description": "B"}]},  # dup ids
-    {**SHORT, "qtype": "noul"},                          # bad noul ids
-    {**SHORT, "qtype": "score"},                         # bad score ids
-    {**SHORT, "qtype": "ranking"},                       # unknown qtype
+    {"state": "s", "question": "q", "options": [
+        {"id": "a", "description": "A"},
+        {"id": "b", "description": "B"}]},               # old shorthand
     {"state": "s", "questions": {}},                     # empty
     {"state": "s", "questions": {"q": {"type": "choice",
         "instructions": "i", "criteria": {"a": "A", "b": "B"},
@@ -227,11 +184,11 @@ def test_shorthand_noul_score_inference():
 ])
 def test_invalid_bodies_rejected(body):
     with pytest.raises(ValidationError):
-        DecisionsRequest(**body)
+        DecisionsQuery(**body)
 
 
 def test_unknown_top_level_field_ignored():
-    req = DecisionsRequest(**{**TYPED, "some_future_field": 1})
+    req = DecisionsQuery(**{**TYPED, "some_future_field": 1})
     assert list(req.questions) == ["decision"]
 
 
@@ -247,12 +204,12 @@ def _choice(k):
 
 @pytest.mark.parametrize("k", [17, 26, 100, 255])
 def test_typed_choice_accepts_up_to_max_options(k):
-    DecisionsRequest(**_choice(k))
+    DecisionsQuery(**_choice(k))
     SystemOneRequest(model="m", **_choice(k))
 
 
 def test_over_max_options_names_the_setting():
-    for model, extra in ((DecisionsRequest, {}),
+    for model, extra in ((DecisionsQuery, {}),
                          (SystemOneRequest, {"model": "m"})):
         with pytest.raises(ValidationError,
                            match="VLLM_TYPED_DECISIONS_MAX_OPTIONS"):
@@ -262,17 +219,17 @@ def test_over_max_options_names_the_setting():
 def test_limits_follow_settings():
     set_limits_for_tests(DecisionLimits(max_options=5, max_questions=2))
     with pytest.raises(ValidationError):
-        DecisionsRequest(**_choice(6))
+        DecisionsQuery(**_choice(6))
     with pytest.raises(ValidationError,
                        match="VLLM_TYPED_DECISIONS_MAX_QUESTIONS"):
-        DecisionsRequest(state="s", questions={
+        DecisionsQuery(state="s", questions={
             f"q{i}": {"type": "noul", "instructions": "i"}
             for i in range(3)})
 
 
 def test_render_refuses_more_options_than_markers():
     s = _make()
-    q = compile_question(DecisionsRequest(**_choice(27)), "q")
+    q = compile_question(DecisionsQuery(**_choice(27)), "q")
     result = _run(s._build_prompt(q))
     assert isinstance(result, ErrorResponse)
     assert "27 options exceed the 26" in result.error.message
@@ -283,7 +240,7 @@ def test_render_refuses_more_options_than_markers():
 # ---------------------------------------------------------------------
 
 def _answer(s, body, qid="decision"):
-    r = _run(s.create_decisions(DecisionsRequest(**body)))
+    r = _run(s.answer_query(DecisionsQuery(**body)))
     return r["answers"][qid]
 
 
@@ -301,16 +258,15 @@ def test_default_temperature_is_raw():
     assert "raw_probabilities" not in prov and "dominance" not in prov
 
 
-def test_server_default_applies_to_every_form_and_endpoint():
+def test_server_default_applies_to_every_endpoint():
     set_limits_for_tests(DecisionLimits(temperature=0.5))
     name = _fake_backend()
     s = _make(backend=name)
     logits = {"a": 0.0, "b": -0.7, "c": -1.4}
     want = restricted_softmax(logits, temperature=0.5)
-    for body in (SHORT, TYPED):
-        a = _answer(s, body)
-        assert a["extra"]["audit"]["temperature_source"] == "server"
-        assert a["probabilities"] == pytest.approx(want)
+    a = _answer(s, TYPED)
+    assert a["extra"]["audit"]["temperature_source"] == "server"
+    assert a["probabilities"] == pytest.approx(want)
     sys1 = _run(_make(ServingSystemOne, backend=name).create_systemone(
         SystemOneRequest(model="m", **TYPED)))
     assert sys1.answers["decision"]["probabilities"] == pytest.approx(want)
@@ -354,7 +310,7 @@ THREE = {"state": "s", "questions": {
 
 def test_envelope_fields():
     s = _make(backend=_fake_backend())
-    r = _run(s.create_decisions(DecisionsRequest(**THREE)))
+    r = _run(s.answer_query(DecisionsQuery(**THREE)))
     assert r["id"].startswith("decisions-")
     assert r["object"] == "decisions"
     assert r["model"] == "served-model"
@@ -377,13 +333,13 @@ def test_model_echo_resolves_aliases():
     s = _make(backend=_fake_backend())
     for sent, echoed in (("jev-latest", "jev-1.13.0"),
                          ("my-label", "my-label")):
-        r = _run(s.create_decisions(DecisionsRequest(model=sent, **TYPED)))
+        r = _run(s.answer_query(DecisionsQuery(model=sent, **TYPED)))
         assert r["model"] == echoed
 
 
 def test_partial_failure_keeps_other_answers():
     s = _make(backend=_fake_backend(fail={"dept"}))
-    r = _run(s.create_decisions(DecisionsRequest(**THREE)))
+    r = _run(s.answer_query(DecisionsQuery(**THREE)))
     assert set(r["answers"]) == {"urgent", "mood"}
     assert "boom in dept" in r["partial_failures"]["dept"]
     assert r["usage"]["input_tokens"] == 20
@@ -391,7 +347,7 @@ def test_partial_failure_keeps_other_answers():
 
 def test_all_failed_names_first_in_request_order():
     s = _make(backend=_fake_backend(fail={"urgent", "dept", "mood"}))
-    r = _run(s.create_decisions(DecisionsRequest(**THREE)))
+    r = _run(s.answer_query(DecisionsQuery(**THREE)))
     assert isinstance(r, ErrorResponse)
     assert "'urgent'" in r.error.message
     assert r.error.code == 400
@@ -400,15 +356,15 @@ def test_all_failed_names_first_in_request_order():
 def test_removed_fields_are_ignored_or_refused():
     # response_schema / label_prompt / prefixed_layout were removed: as
     # unknown top-level fields they are ignored on /v1/decisions ...
-    req = DecisionsRequest(**TYPED, response_schema={"type": "object"},
+    req = DecisionsQuery(**TYPED, response_schema={"type": "object"},
                            label_prompt="letter",
                            prefixed_layout="letter-first")
     assert list(req.questions) == ["decision"]
     for name in ("response_schema", "label_prompt", "prefixed_layout"):
-        assert name not in DecisionsRequest.model_fields
+        assert name not in DecisionsQuery.model_fields
     # ... the prefixed readout is refused by the logit backend's options
     s = _make()
-    r = _run(s.create_decisions(DecisionsRequest(**{
+    r = _run(s.answer_query(DecisionsQuery(**{
         **_choice(30), "backend_options": {"readout": "prefixed"}})))
     assert isinstance(r, ErrorResponse) and r.error.code == 422
     assert "readout" in r.error.message
@@ -419,18 +375,10 @@ def test_removed_fields_are_ignored_or_refused():
 # systemone = project(decisions)
 # ---------------------------------------------------------------------
 
-def test_systemone_rejects_decisions_only_fields():
-    for field, value in (("calibration_temperature", 0.5), ("seed", 1),
-                         ("backend_options", {}), ("extra", "none"),
-                         ("question", "q")):
-        with pytest.raises(ValidationError, match="not part of the Jev"):
-            SystemOneRequest(model="m", **THREE, **{field: value})
-
-
 def test_systemone_is_a_projection_of_decisions():
     name = _fake_backend(fail={"dept"})
-    dec = _run(_make(backend=name).create_decisions(
-        DecisionsRequest(model="jev-latest", **THREE)))
+    dec = _run(_make(backend=name).answer_query(
+        DecisionsQuery(model="jev-latest", **THREE)))
     sys1 = _run(_make(ServingSystemOne, backend=name).create_systemone(
         SystemOneRequest(model="jev-latest", **THREE)))
     projected = project_response(dec).model_dump()
@@ -526,7 +474,7 @@ def test_option_mass_needs_full_vocab_logprobs():
 
 def test_cached_tokens_per_answer_and_in_usage():
     s = _gather_serving([0.5, 0.2, 0.1], cached=40)
-    r = _run(s.create_decisions(DecisionsRequest(**THREE)))
+    r = _run(s.answer_query(DecisionsQuery(**THREE)))
     for a in r["answers"].values():
         assert a["extra"]["audit"]["cached_input_tokens"] == 40
     assert r["usage"]["cached_input_tokens"] == 120
@@ -536,7 +484,7 @@ def test_cached_tokens_per_answer_and_in_usage():
 def test_two_stage_counts_every_read():
     s = _gather_serving([0.3] * 26, cached=7)
     body = _choice(30)
-    r = _run(s.create_decisions(DecisionsRequest(**body)))
+    r = _run(s.answer_query(DecisionsQuery(**body)))
     a = r["answers"]["q"]
     block = a["extra"]["backend"]
     assert block["name"] == "logit"
@@ -588,7 +536,7 @@ def test_extra_basic_trims_two_stage_scores():
 
 def test_extra_none_has_no_block():
     s = _gather_serving([0.5, 0.2, 0.1], cached=4)
-    r = _run(s.create_decisions(DecisionsRequest(**{**THREE,
+    r = _run(s.answer_query(DecisionsQuery(**{**THREE,
                                                     "extra": "none"})))
     for a in r["answers"].values():
         assert "extra" not in a
@@ -598,14 +546,14 @@ def test_extra_none_has_no_block():
 
 def test_extra_level_validated():
     with pytest.raises(ValidationError):
-        DecisionsRequest(**{**TYPED, "extra": "summary"})
+        DecisionsQuery(**{**TYPED, "extra": "summary"})
 
 
 def test_bad_readout_is_a_422_not_a_crash():
     # the refusal must carry its real status. The strict stub
     # fails on a plain int, so this test catches the int-status bug.
     s = _make()
-    r = _run(s.create_decisions(DecisionsRequest(
+    r = _run(s.answer_query(DecisionsQuery(
         **{**_choice(30), "backend_options": {"readout": "bogus"}})))
     assert isinstance(r, ErrorResponse)
     assert r.error.code == 422
@@ -617,7 +565,7 @@ def test_all_questions_failed_returns_failure_code_not_500():
     # code (400 for a backend error), with the question named in the
     # message - not a 500 from a broken error path.
     s = _make(backend=_fake_backend(fail={"q"}))
-    r = _run(s.create_decisions(DecisionsRequest(**_choice(30))))
+    r = _run(s.answer_query(DecisionsQuery(**_choice(30))))
     assert isinstance(r, ErrorResponse)
     assert r.error.code == 400
     assert r.error.message.startswith("question 'q' failed:")
@@ -652,7 +600,7 @@ class _MergingTok(_Tok):
 
 def test_auto_picks_direct_within_markers():
     s = _gather_serving([0.5] * 26, cached=0)
-    r = _run(s.create_decisions(DecisionsRequest(**_choice(26))))
+    r = _run(s.answer_query(DecisionsQuery(**_choice(26))))
     assert not isinstance(r, ErrorResponse), getattr(r, "error", None)
     a = r["answers"]["q"]
     assert a["extra"]["audit"]["readout"] == "direct"
@@ -662,14 +610,14 @@ def test_auto_picks_wide_direct_up_to_its_capacity():
     # "AA" merges everywhere it appears, so wide-direct holds 27 markers;
     # 27 options must land on wide-direct, not two-stage.
     s = _gather_serving([0.5] * 27, cached=0, tok=_MergingTok())
-    r = _run(s.create_decisions(DecisionsRequest(**_choice(27))))
+    r = _run(s.answer_query(DecisionsQuery(**_choice(27))))
     a = r["answers"]["q"]
     assert a["extra"]["audit"]["readout"] == "wide-direct"
 
 
 def test_auto_falls_back_to_two_stage_beyond_capacity():
     s = _gather_serving([0.3] * 26, cached=7)  # _Tok: no pair merges, cap 26
-    r = _run(s.create_decisions(DecisionsRequest(**_choice(30))))
+    r = _run(s.answer_query(DecisionsQuery(**_choice(30))))
     a = r["answers"]["q"]
     assert a["extra"]["audit"]["readout"] == "two-stage"
 
@@ -681,7 +629,7 @@ def test_auto_falls_back_to_two_stage_beyond_capacity():
 def test_render_version_lands_in_every_audit():
     name = _fake_backend()
     s = _make(backend=name)
-    r = _run(s.create_decisions(DecisionsRequest(**TYPED)))
+    r = _run(s.answer_query(DecisionsQuery(**TYPED)))
     for a in r["answers"].values():
         assert a["extra"]["audit"]["render_version"] == RENDER_VERSION
 
@@ -735,7 +683,7 @@ def test_self_check_runs_once_and_is_shared_by_both_endpoints(fresh_startup):
     s1 = ServingDecisions(CountingEngine([0.5] * 4, cached=0),
                           _Models(), _Renderer(),
                           request_logger=None, default_backend="logit")
-    r1 = _run(s1.create_decisions(DecisionsRequest(**TYPED)))
+    r1 = _run(s1.answer_query(DecisionsQuery(**TYPED)))
     assert not isinstance(r1, ErrorResponse), getattr(r1, "error", None)
     n_after_decisions = calls["n"]
     s2 = ServingSystemOne(CountingEngine([0.5] * 4, cached=0),
@@ -765,7 +713,7 @@ def test_request_during_startup_gets_503(fresh_startup):
         s = ServingDecisions(_Engine(), _Models(), _Renderer(),
                              request_logger=None, default_backend="logit")
         assert s.startup.starting is True
-        r = await s.create_decisions(DecisionsRequest(**TYPED))
+        r = await s.answer_query(DecisionsQuery(**TYPED))
         return r
 
     r = asyncio.run(main())
@@ -794,7 +742,7 @@ def test_startup_crash_gives_refusal_not_hang(fresh_startup):
             loop.create_task(su._guard(boom())))
         # let the guard record the failure
         s = _make()
-        r = _run(s.create_decisions(DecisionsRequest(**TYPED)))
+        r = _run(s.answer_query(DecisionsQuery(**TYPED)))
         assert isinstance(r, ErrorResponse)
         assert r.error.code == 503
         assert "self-check failed" in r.error.message

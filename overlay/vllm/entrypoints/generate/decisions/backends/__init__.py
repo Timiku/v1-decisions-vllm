@@ -247,8 +247,9 @@ def parse_backend_spec(spec: str) -> tuple[str, dict]:
 
 
 def validation_error(message: str, code: int = 422):
-    """An ErrorResponse-shaped request-validation failure. Both routes
-    answer body-validation failures with 422."""
+    """An ErrorResponse-shaped request-validation failure. The routes
+    answer body-validation failures with it: /v1/systemone with 422
+    (Jev), /v1/decisions with 400 (OpenAI)."""
     try:
         from vllm.entrypoints.serve.engine.protocol import (
             ErrorInfo, ErrorResponse)

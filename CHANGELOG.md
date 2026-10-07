@@ -2,6 +2,44 @@
 
 ## Unreleased
 
+**Breaking (0.2.0): `/v1/decisions` now takes and returns OpenAI's
+Decisions format.** Clients of the old `/v1/decisions` body must move to
+OpenAI's request, or to `/v1/systemone`, which keeps the Jev format.
+
+- `/v1/decisions` request: `model`, `input` (a string, or user messages
+  of `input_text` parts), `questions[]` (`predicate`, `choice` with string
+  or boolean values, `score` with 2-10 levels), `safety_identifier`
+  (accepted, ignored). Unknown fields, images and an explicit
+  `name: null` are refused with HTTP 400 (was 422), as in vLLM's draft
+  #60465. Input is joined as there: parts with a newline, messages with
+  a blank line.
+- `/v1/decisions` response: `model`, `answers` in question order,
+  OpenAI's `usage` shape; `id` and `created` move to the top-level
+  `extra`. A failed question is a `refusal` answer with `extra.error`
+  (was `partial_failures`); if every question fails, the request fails.
+- All settings OpenAI has no field for move under one `extra` block:
+  `calibration_temperature`, `backend`, `backend_options`, `seed`, and
+  `detail` (was the request's `extra`: full | basic | none, or per
+  block; default `full`). Answers carry their audit and backend blocks
+  in `extra`, as before.
+- Removed: the one-question shorthand, the question map, `state`, and
+  the top-level settings on `/v1/decisions`.
+- `/v1/systemone` is unchanged for Jev clients and gains the same
+  `extra` request block. `calibration_temperature`, `seed` and
+  `backend_options` are refused at its top level (send them under
+  `extra`); `backend` is accepted at the top level or under `extra`,
+  not both.
+- Each OpenAI question renders as the equivalent Jev question, byte for
+  byte, so the saved temperature calibration still applies.
+- Choice questions take up to 255 choices (the server's limit), not
+  #60465's 26.
+- `tools/capture_logits.py` posts to `/v1/systemone`;
+  `tools/test_decisions.py` tests the OpenAI wire, and the OpenAI SDK
+  parse when `openai` is installed.
+- Internal: `DecisionsRequest` is now `DecisionsQuery`, and
+  `ServingDecisions.create_decisions` is now `answer_query`;
+  `create_decisions` takes the OpenAI request.
+
 - Logit backend: `logprobs` option, `top-k` (default) or `exact`. `top-k`
   reads the markers from the engine's plain top-k window
   (k = `--max-logprobs`, no `logprob_token_ids`); a marker outside it

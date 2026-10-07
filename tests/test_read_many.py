@@ -15,7 +15,7 @@ from vllm.entrypoints.generate.decisions.backends.host import BackendHost
 from vllm.entrypoints.generate.decisions.limits import (
     DecisionLimits, set_limits_for_tests)
 from vllm.entrypoints.generate.decisions.protocol import (
-    CompiledQuestion, DecisionOption, DecisionsRequest)
+    CompiledQuestion, DecisionOption, DecisionsQuery)
 from vllm.entrypoints.serve.engine.protocol import ErrorResponse
 
 from test_decisions_offline import (
@@ -193,7 +193,7 @@ def _serving(backend_cls=None, engine=None, default_backend=None):
 
 
 def _request(qids=("q1", "q2", "q3")):
-    return DecisionsRequest(model="m", state="s", questions={
+    return DecisionsQuery(model="m", state="s", questions={
         q: {"type": "choice", "instructions": "decide",
             "criteria": {"A": "a", "B": "b"}} for q in qids})
 
@@ -220,7 +220,7 @@ class TestDispatch:
                 return _result(3)
 
         s = _serving(B)
-        out = asyncio.run(s.create_decisions(_request(), None))
+        out = asyncio.run(s.answer_query(_request(), None))
         assert calls["many"] == 1
         assert calls["read"] == ["q2"]
         assert set(out["answers"]) == {"q1", "q2"}
@@ -242,7 +242,7 @@ class TestDispatch:
                 return _result()
 
         s = _serving(B)
-        out = asyncio.run(s.create_decisions(_request(), None))
+        out = asyncio.run(s.answer_query(_request(), None))
         assert len(reads) == 3
         assert set(out["answers"]) == {"q1", "q2", "q3"}
 
@@ -258,7 +258,7 @@ class TestDispatch:
                 return _result()
 
         s = _serving(B)
-        out = asyncio.run(s.create_decisions(_request(("q1",)), None))
+        out = asyncio.run(s.answer_query(_request(("q1",)), None))
         assert set(out["answers"]) == {"q1"}
 
     def test_backend_without_read_many_is_unchanged(self):
@@ -270,14 +270,14 @@ class TestDispatch:
                 return _result()
 
         s = _serving(B)
-        out = asyncio.run(s.create_decisions(_request(), None))
+        out = asyncio.run(s.answer_query(_request(), None))
         assert out["usage"]["input_tokens"] == 9
 
     def test_canvas_end_to_end_one_engine_request(self):
         engine = _JointEngine(favour={SLOT[1]: "B", SLOT[2]: "A",
                                       SLOT[3]: "B"})
         s = _serving(engine=engine, default_backend="canvas")
-        out = asyncio.run(s.create_decisions(_request(), None))
+        out = asyncio.run(s.answer_query(_request(), None))
         assert len(engine.params) == 1
         picks = {q: max(a["probabilities"], key=a["probabilities"].get)
                  for q, a in out["answers"].items()}

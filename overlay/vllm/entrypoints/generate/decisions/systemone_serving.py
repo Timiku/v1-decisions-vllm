@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """/v1/systemone: a projection of /v1/decisions.
 
-The Jev request is answered by `create_decisions` unchanged, then each
+The Jev request is answered by `answer_query` unchanged, then each
 answer is reduced to its question type's `jev_fields`. No readout,
 calibration or failure handling of its own: whatever /v1/decisions
 returns for the same questions, this returns minus `extra` and the
@@ -12,7 +12,7 @@ contract.
 from __future__ import annotations
 
 from vllm.entrypoints.generate.decisions.protocol import (
-    EXTRA_BLOCKS, DecisionsRequest)
+    DecisionsQuery, normalize_extra)
 from vllm.entrypoints.generate.decisions.question_types import (
     get_question_type)
 from vllm.entrypoints.generate.decisions.serving import ServingDecisions
@@ -29,15 +29,18 @@ except ImportError:  # locked fork moved engine protocol to openai
 
 
 def project_answer(answer: dict) -> dict:
-    """A /v1/decisions answer -> the Jev answer: `type` plus the type's
-    Jev fields."""
+    """An internal answer -> the Jev answer: `type`, the type's Jev
+    fields, and `extra` when the request's detail kept any."""
     qt = get_question_type(answer["type"])
-    return {"type": answer["type"],
-            **{k: answer[k] for k in qt.jev_fields}}
+    out = {"type": answer["type"],
+           **{k: answer[k] for k in qt.jev_fields}}
+    if "extra" in answer:
+        out["extra"] = answer["extra"]
+    return out
 
 
 def project_response(decisions: dict) -> SystemOneResponse:
-    """A /v1/decisions response dict -> the Jev response."""
+    """An `answer_query` result -> the Jev response."""
     return SystemOneResponse(
         id="systemone-" + decisions["id"].removeprefix("decisions-"),
         created=decisions["created"],
@@ -58,15 +61,14 @@ class ServingSystemOne(ServingDecisions):
         request: SystemOneRequest,
         raw_request=None,
     ) -> SystemOneResponse | ErrorResponse:
-        # Already validated as a Jev body; the calibration temperature is
-        # the server default because the Jev wire cannot carry one, and
-        # the extra blocks are never built into the response.
-        decisions_request = DecisionsRequest.model_construct(
+        # Already validated as a Jev body; the settings come from `extra`.
+        fields = request.extra.query_fields()
+        fields["backend"] = request.backend or fields["backend"]
+        fields["extra"] = normalize_extra(fields["extra"])
+        query = DecisionsQuery.model_construct(
             model=request.model, state=request.state,
-            questions=request.questions, backend=request.backend,
-            backend_options=None, calibration_temperature=None, seed=None,
-            extra={b: "none" for b in EXTRA_BLOCKS})
-        result = await self.create_decisions(decisions_request, raw_request)
+            questions=request.questions, **fields)
+        result = await self.answer_query(query, raw_request)
         if isinstance(result, ErrorResponse):
             return result
         return project_response(result)

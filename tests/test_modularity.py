@@ -23,7 +23,7 @@ from vllm.entrypoints.generate.decisions.backends import (
     BackendResult, register_backend, restricted_softmax)
 from vllm.entrypoints.generate.decisions.limits import (
     DecisionLimits, set_limits_for_tests)
-from vllm.entrypoints.generate.decisions.protocol import DecisionsRequest
+from vllm.entrypoints.generate.decisions.protocol import DecisionsQuery
 from vllm.entrypoints.generate.decisions.question_types import (
     QuestionModel, QuestionType, register_question_type)
 from vllm.entrypoints.generate.decisions.serving import ServingDecisions
@@ -85,7 +85,7 @@ def _serving(backend: str):
 
 def test_plugin_question_type_is_answered():
     s = _serving(_fake_backend())
-    r = _run(s.create_decisions(DecisionsRequest(**SENTIMENT)))
+    r = _run(s.answer_query(DecisionsQuery(**SENTIMENT)))
     a = r["answers"]["tone"]
     assert a["type"] == "sentiment"
     assert a["label"] == "positive"
@@ -103,13 +103,13 @@ def test_plugin_question_type_is_not_on_the_jev_wire():
 
 def test_plugin_question_type_validates_its_own_fields():
     with pytest.raises(ValidationError, match="tone"):
-        DecisionsRequest(state="s", questions={"tone": {
+        DecisionsQuery(state="s", questions={"tone": {
             "type": "sentiment", "instructions": "i", "criteria": {}}})
 
 
 def test_unregistered_type_is_refused():
     with pytest.raises(ValidationError, match="unknown type 'ranking'"):
-        DecisionsRequest(state="s", questions={"q": {
+        DecisionsQuery(state="s", questions={"q": {
             "type": "ranking", "instructions": "i"}})
 
 
@@ -186,14 +186,14 @@ def test_duplicate_backend_is_refused():
 
 def test_backend_options_reach_the_backend():
     s = _toy_serving()
-    r = _run(s.create_decisions(DecisionsRequest(
+    r = _run(s.answer_query(DecisionsQuery(
         **TWO, backend_options={"boost": math.log(3)})))
     assert r["answers"]["q"]["probabilities"]["a"] == pytest.approx(0.75)
 
 
 def test_backend_options_are_validated_by_the_backend():
     s = _toy_serving()
-    r = _run(s.create_decisions(DecisionsRequest(
+    r = _run(s.answer_query(DecisionsQuery(
         **TWO, backend_options={"bost": 1.0})))
     assert isinstance(r, ErrorResponse) and r.error.code == 422
     assert "toy" in r.error.message and "bost" in r.error.message
@@ -201,7 +201,7 @@ def test_backend_options_are_validated_by_the_backend():
 
 def test_backend_without_options_refuses_them():
     s = _serving(_fake_backend())
-    r = _run(s.create_decisions(DecisionsRequest(
+    r = _run(s.answer_query(DecisionsQuery(
         **TWO, backend_options={"readout": "direct"})))
     assert isinstance(r, ErrorResponse) and r.error.code == 422
     assert "takes no backend_options" in r.error.message
@@ -209,7 +209,7 @@ def test_backend_without_options_refuses_them():
 
 def test_backend_facts_land_in_extra_backend_and_audit():
     s = _toy_serving()
-    a = _run(s.create_decisions(DecisionsRequest(**TWO)))["answers"]["q"]
+    a = _run(s.answer_query(DecisionsQuery(**TWO)))["answers"]["q"]
     backend, audit = a["extra"]["backend"], a["extra"]["audit"]
     assert backend["name"] == "toy"
     assert backend["toy_fact"] == 42
@@ -222,7 +222,7 @@ def test_backend_facts_land_in_extra_backend_and_audit():
 
 def test_a_plugin_type_on_a_plugin_backend():
     s = _toy_serving()
-    r = _run(s.create_decisions(DecisionsRequest(
+    r = _run(s.answer_query(DecisionsQuery(
         **SENTIMENT, backend_options={"boost": 2.0})))
     assert r["answers"]["tone"]["label"] == "positive"
 
@@ -233,7 +233,7 @@ def test_a_plugin_type_on_a_plugin_backend():
 
 def test_extra_per_block():
     s = _toy_serving()
-    a = _run(s.create_decisions(DecisionsRequest(
+    a = _run(s.answer_query(DecisionsQuery(
         **TWO, extra={"audit": "none", "backend": "basic"})))["answers"]["q"]
     assert set(a["extra"]) == {"backend"}
     assert "option_logits" not in a["extra"]["backend"]
@@ -242,7 +242,7 @@ def test_extra_per_block():
 
 def test_extra_block_left_out_of_the_map_is_full():
     s = _toy_serving()
-    a = _run(s.create_decisions(DecisionsRequest(
+    a = _run(s.answer_query(DecisionsQuery(
         **TWO, extra={"backend": "none"})))["answers"]["q"]
     assert set(a["extra"]) == {"audit"}
 
@@ -251,7 +251,7 @@ def test_extra_block_left_out_of_the_map_is_full():
                                  "summary", 3])
 def test_extra_refuses_unknown_blocks_and_levels(bad):
     with pytest.raises(ValidationError):
-        DecisionsRequest(**TWO, extra=bad)
+        DecisionsQuery(**TWO, extra=bad)
 
 
 # ---------------------------------------------------------------------

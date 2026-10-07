@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-"""Router for the /v1/decisions typed-decision endpoint."""
+"""Router for /v1/decisions (OpenAI's Decisions format, plus `extra`)."""
 from http import HTTPStatus
 
 from fastapi import APIRouter, Depends, FastAPI, Request
@@ -8,7 +8,8 @@ from fastapi.responses import JSONResponse
 
 from vllm.entrypoints.generate.decisions.backends import (
     validation_error)
-from vllm.entrypoints.generate.decisions.protocol import DecisionsRequest
+from vllm.entrypoints.generate.decisions.openai_protocol import (
+    DecisionsRequest)
 from vllm.entrypoints.generate.decisions.serving import (
     ServingDecisions,
 )
@@ -53,8 +54,11 @@ async def create_decision(raw_request: Request):
     try:
         request = DecisionsRequest(**raw_body)
     except Exception as e:
-        return JSONResponse(content=validation_error(str(e)).model_dump(),
-                            status_code=422)
+        # 400, as OpenAI and vLLM's own OpenAI routes answer an invalid
+        # body (/v1/systemone keeps Jev's 422).
+        return JSONResponse(
+            content=validation_error(str(e), code=400).model_dump(),
+            status_code=400)
     result = await handler.create_decisions(request, raw_request)
 
     if isinstance(result, ErrorResponse):

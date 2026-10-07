@@ -43,19 +43,25 @@ CASES = {
             "dept": {"type": "choice", "instructions": "Which team?",
                      "criteria": {"billing": "Payments",
                                   "technical": "Bugs"}}}},
+    # The three shorthand_* cases were one-question shorthand bodies (the
+    # shorthand was removed in 0.2.0). Each is now the typed body the
+    # shorthand expanded to, which renders byte-identically, so the keys
+    # (and the golden file) stay.
     "shorthand_choice": {
         "state": "The patient reports chest pain radiating to the left arm.",
-        "question": "Which diagnosis fits best?",
-        "options": [
-            {"id": "cardiac", "description": "Acute cardiac event"},
-            {"id": "musculoskeletal", "description": "Musculoskeletal"},
-            {"id": "reflux", "description": "GERD"}]},
+        "questions": {"decision": {
+            "type": "choice", "instructions": "Which diagnosis fits best?",
+            "criteria": {"cardiac": "Acute cardiac event",
+                         "musculoskeletal": "Musculoskeletal",
+                         "reflux": "GERD"}}}},
     "shorthand_noul": {
-        "state": "s", "question": "Is it urgent?",
-        "options": [{"id": "true", "description": "Yes, urgent"},
-                    {"id": "false", "description": "Not urgent"}]},
+        "state": "s",
+        "questions": {"decision": {
+            "type": "noul", "instructions": "Is it urgent?",
+            "criteria": {"true": "Yes, urgent", "false": "Not urgent"}}}},
     "shorthand_score": {
-        "state": "s", "question": "How frustrated?", "qtype": "score",
-        "options": [{"id": "0", "description": "Calm"},
-                    {"id": "1", "description": "Angry"}]},
+        "state": "s",
+        "questions": {"decision": {
+            "type": "score", "instructions": "How frustrated?",
+            "criteria": ["Calm", "Angry"]}}},
 }

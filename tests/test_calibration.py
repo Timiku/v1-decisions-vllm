@@ -25,7 +25,7 @@ from vllm.entrypoints.generate.decisions.backends import (
     register_backend)
 from vllm.entrypoints.generate.decisions.limits import (
     DecisionLimits, set_limits_for_tests)
-from vllm.entrypoints.generate.decisions.protocol import DecisionsRequest
+from vllm.entrypoints.generate.decisions.protocol import DecisionsQuery
 from vllm.entrypoints.generate.decisions.serving import ServingDecisions
 from vllm.entrypoints.generate.decisions.systemone_serving import (
     ServingSystemOne)
@@ -422,7 +422,7 @@ def test_self_check_refusal_returns_error_response(fresh_startup):
     from vllm.entrypoints.serve.engine.protocol import ErrorResponse
     s = _serving(None)
     s.startup.slot_check = "decision self-check failed: no"
-    r = asyncio.run(s.create_decisions(DecisionsRequest(
+    r = asyncio.run(s.answer_query(DecisionsQuery(
         **{"state": "s", "questions": {"q": {
             "type": "choice", "instructions": "i",
             "criteria": {"a": "x", "b": "y"}}}})))
@@ -465,7 +465,7 @@ def test_saved_not_kept_loads_as_1_0_calibrated(tmp_path, monkeypatch):
                                      "source": "calibrated"}
     # a request's audit shows 1.0 with source calibrated
     from vllm.entrypoints.serve.engine.protocol import ErrorResponse
-    r = asyncio.run(s.create_decisions(DecisionsRequest(
+    r = asyncio.run(s.answer_query(DecisionsQuery(
         **{"state": "s", "questions": {"q": {
             "type": "choice", "instructions": "i",
             "criteria": {"a": "x", "b": "y"}}}})))
@@ -521,7 +521,7 @@ def test_calibration_chain_idempotent_and_skipped_after_refusal(fresh_startup, m
     _su._STARTUP = None
     s1 = asyncio.run(main(refuse=True))
     assert calls["n"] == 1, calls  # still 1: the refusal skipped calibration
-    r = asyncio.run(s1.create_decisions(DecisionsRequest(**TYPED_CAL_BODY)))
+    r = asyncio.run(s1.answer_query(DecisionsQuery(**TYPED_CAL_BODY)))
     assert getattr(r, "error", None) is not None
     assert r.error.code == 503
     assert "self-check failed" in r.error.message
@@ -566,7 +566,7 @@ def test_starting_gate_covers_non_logit_backends(fresh_startup, monkeypatch):
         assert s.decision_backend.name == "encoder"
         assert s.startup.slot_check is None
         assert s.startup.starting is True
-        r = await s.create_decisions(DecisionsRequest(
+        r = await s.answer_query(DecisionsQuery(
             **{"state": "s", "questions": {"q": {
                 "type": "choice", "instructions": "i",
                 "criteria": {"a": "x", "b": "y"}}}}))
@@ -604,7 +604,7 @@ def test_calibration_unset_never_schedules(fresh_startup, monkeypatch):
     s = _serving(None)
     assert s.startup.starting is False
     assert getattr(s.startup, "_calibration_scheduled", False) is False
-    r = asyncio.run(s.create_decisions(DecisionsRequest(
+    r = asyncio.run(s.answer_query(DecisionsQuery(
         **{"state": "s", "questions": {"q": {
             "type": "choice", "instructions": "i",
             "criteria": {"a": "x", "b": "y"}}}})))

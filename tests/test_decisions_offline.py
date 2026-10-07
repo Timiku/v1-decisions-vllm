@@ -16,7 +16,7 @@ from vllm.entrypoints.generate.decisions.systemone_protocol import (
 )
 from vllm.entrypoints.generate.decisions.compile import compile_question
 from vllm.entrypoints.generate.decisions.protocol import (
-    DecisionsRequest as UnifiedDecisionRequest,
+    DecisionsQuery as UnifiedDecisionRequest,
 )
 from vllm.entrypoints.serve.engine.protocol import ErrorResponse
 from vllm.entrypoints.generate.decisions.backends import (
@@ -33,33 +33,24 @@ from vllm.entrypoints.generate.decisions.backends import (
 # ---------------------------------------------------------------------
 
 def _base(**kw):
-    body = {"state": "s", "question": "q",
-            "options": [{"id": "a", "description": "A"},
-                        {"id": "b", "description": "B"}]}
+    body = {"state": "s", "questions": {"decision": {
+        "type": "choice", "instructions": "q",
+        "criteria": {"a": "A", "b": "B"}}}}
     body.update(kw)
     return body
 
 
 class TestUnifiedValidation:
-    def test_string_options_rejected(self):
-        with pytest.raises(ValueError):
-            UnifiedDecisionRequest(**_base(options=["a", "b"]))
-
-    def test_id_only_options_rejected(self):
-        # description is required
-        with pytest.raises(ValueError):
-            UnifiedDecisionRequest(**_base(options=[{"id": "a"},
-                                                    {"id": "b"}]))
-
-    def test_duplicate_ids_rejected(self):
-        with pytest.raises(ValueError):
-            UnifiedDecisionRequest(**_base(
-                options=[{"id": "a", "description": "A"},
-                         {"id": "a", "description": "A2"}]))
-
     def test_typed_options_accepted(self):
         req = UnifiedDecisionRequest(**_base())
         assert list(req.questions["decision"].criteria) == ["a", "b"]
+
+    def test_shorthand_rejected(self):
+        # the one-question shorthand was removed in 0.2.0
+        with pytest.raises(ValueError):
+            UnifiedDecisionRequest(state="s", question="q", options=[
+                {"id": "a", "description": "A"},
+                {"id": "b", "description": "B"}])
 
     def test_empty_questions_rejected(self):
         with pytest.raises(ValueError):
@@ -90,15 +81,6 @@ class TestUnifiedValidation:
             "q": {"type": "score", "instructions": "i",
                   "criteria": ["Calm", "Angry"]}})
         assert req.questions["q"].type == "score"
-
-    def test_single_form_score_ids(self):
-        # explicit qtype=score with ids other than 0..k-1 -> still
-        # rejected at validation
-        with pytest.raises(ValueError):
-            UnifiedDecisionRequest(**_base(
-                qtype="score",
-                options=[{"id": "low", "description": "L"},
-                         {"id": "high", "description": "H"}]))
 
 
 class TestSystemOneOverrides:
@@ -445,11 +427,11 @@ class TestLayaConfigFallback:
 
 
 # ---------------------------------------------------------------------
-# create_decisions end-to-end through the stubs
+# answer_query end-to-end through the stubs
 # ---------------------------------------------------------------------
 
 class _UnifiedServing:
-    """Minimal ServingDecisions host: real create_decisions, fake engine
+    """Minimal ServingDecisions host: real answer_query, fake engine
     and renderer, a registered backend the tests control."""
 
     def __init__(self, fail_qids=(), delays=None):
@@ -501,7 +483,7 @@ class _FakeModels:
 
 
 class TestCreateDecisions:
-    """Concurrency ordering through the real create_decisions (the full
+    """Concurrency ordering through the real answer_query (the full
     partial-failure contract is in test_unify.py)."""
 
     def _request(self, questions):
@@ -516,7 +498,7 @@ class TestCreateDecisions:
 
     def test_backend_refusal_is_a_partial_failure_naming_question(self):
         s = _UnifiedServing(fail_qids={"q2"}).serving
-        result = asyncio.run(s.create_decisions(self._three(), None))
+        result = asyncio.run(s.answer_query(self._three(), None))
         assert set(result["answers"]) == {"q1", "q3"}
         assert "q2" in result["partial_failures"]["q2"]
 
@@ -525,7 +507,7 @@ class TestCreateDecisions:
         s = _UnifiedServing(
             fail_qids={"q1", "q2", "q3"},
             delays={"q1": 0.05, "q3": 0.0}).serving
-        result = asyncio.run(s.create_decisions(self._three(), None))
+        result = asyncio.run(s.answer_query(self._three(), None))
         assert isinstance(result, ErrorResponse)
         assert "q1" in result.error.message
         assert "q3" not in result.error.message
@@ -535,7 +517,7 @@ class TestCreateDecisions:
         req = self._request({
             q: {"type": "choice", "instructions": "decide",
                 "criteria": {"A": "a", "B": "b"}} for q in ("q1", "q2")})
-        result = asyncio.run(s.create_decisions(req, None))
+        result = asyncio.run(s.answer_query(req, None))
         assert set(result["answers"]) == {"q1", "q2"}
         assert result["usage"]["input_tokens"] == 6
         assert result["usage"]["output_tokens"] == 0

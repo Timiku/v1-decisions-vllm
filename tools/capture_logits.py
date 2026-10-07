@@ -2,7 +2,8 @@
 """Capture per-option logits from a /v1/systemone tier for T calibration.
 
 Mirrors the jevbench typesafe adapter's request mapping (same build_question),
-posting the question block to /v1/decisions. Emits two files:
+posting the question block to /v1/systemone (whose answers carry
+extra.backend.option_logits since 0.2.0). Emits two files:
   <output>       prediction rows: {id, option_ids, option_logits}
   <output>.gold  gold rows:       {id, options:[{id}], label (int index)}
 Both in the shape semif/benchmarks/calibrate.py consumes.
@@ -63,7 +64,7 @@ def main():
             if args.backend:
                 body["backend"] = args.backend
             try:
-                resp = post(args.endpoint + "/v1/decisions", body)
+                resp = post(args.endpoint + "/v1/systemone", body)
                 ans = resp["answers"]["decision"]
                 ids, logits = extract(t, ans, args.backend)
                 out.write(json.dumps({"id": t["id"], "option_ids": ids,

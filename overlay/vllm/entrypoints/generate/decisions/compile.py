@@ -20,13 +20,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from .protocol import CompiledQuestion, DecisionsRequest
+from .protocol import CompiledQuestion, DecisionsQuery
 from .question_types import flatten, get_question_type
 
 RENDER_VERSION = "2026-09-29.1"
 
 
-def compile_question(request: DecisionsRequest, qid: str,
+def compile_question(request: DecisionsQuery, qid: str,
                      backend_options: Any = None) -> CompiledQuestion:
     """`backend_options`: the request's options, already validated by the
     backend that will read the question (serving does that once per

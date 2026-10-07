@@ -1,16 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
-"""Typed-decision wire protocol: one request model for both endpoints.
+"""The internal decisions query, and the `extra` settings both wires share.
 
-A request is a state plus a map of typed questions. Question types come
-from the registry in `question_types.py` (Jev's noul / choice / score are
-the built-ins; plugins add more). `/v1/decisions` also accepts a
-one-question shorthand (`question` + `options`), which is rewritten into
-`questions` while the request is parsed; nothing downstream knows which
-form was sent.
+`DecisionsQuery` is what the serving path answers: a state plus a map of
+typed questions (Jev's noul / choice / score are the built-in types from
+`question_types.py`; plugins add more) and the request-level settings.
+It is not a wire model: `/v1/decisions` (OpenAI's format,
+`openai_protocol.py`) and `/v1/systemone` (Jev's format,
+`systemone_protocol.py`) each turn their request into one.
 
-Every limit comes from `limits.py`, so both endpoints and both forms
-share one set of caps.
+Every limit comes from `limits.py`, so both wires share one set of caps.
 
 `CompiledQuestion` is the internal, non-wire unit a backend reads: one
 question compiled against the request's state.
@@ -85,62 +84,12 @@ def normalize_extra(value: Any) -> dict[str, str]:
 
 
 # ---------------------------------------------------------------------
-# the one request model
+# the internal query
 # ---------------------------------------------------------------------
 
-_SHORTHAND_KEYS = ("question", "options", "qtype")
-
-def expand_shorthand(data: dict) -> dict:
-    """{state, question, options, qtype?} -> {state, questions: {"decision":
-    ...}}. Returns a new dict; the input is not modified."""
-    data = dict(data)
-    question = data.pop("question", None)
-    options = data.pop("options", None)
-    qtype = data.pop("qtype", None)
-    if "questions" in data:
-        raise ValueError("send either `questions` or the one-question "
-                         "shorthand (`question` + `options`), not both")
-    if question is None or options is None:
-        raise ValueError("the one-question shorthand needs both "
-                         "`question` and `options`")
-    if not isinstance(question, str) or not question:
-        raise ValueError("`question` must be a non-empty string")
-    if not isinstance(options, list) or len(options) < 2:
-        raise ValueError("`options` must be a list of at least 2 "
-                         "{id, description} objects")
-    opts = [DecisionOption.model_validate(o) for o in options]
-    ids = [o.id for o in opts]
-    if len(ids) != len(set(ids)):
-        raise ValueError("option ids must be unique")
-    if qtype is None:
-        qtype = "noul" if set(ids) == {"true", "false"} else "choice"
-    if qtype == "noul":
-        if set(ids) != {"true", "false"}:
-            raise ValueError("qtype 'noul' needs option ids 'true' and "
-                             f"'false' (got {ids})")
-        desc = {o.id: o.description for o in opts}
-        q = {"type": "noul", "instructions": question,
-             "criteria": {"true": desc["true"], "false": desc["false"]}}
-    elif qtype == "score":
-        if ids != [str(i) for i in range(len(ids))]:
-            raise ValueError("qtype 'score' needs option ids "
-                             f"'0'..'{len(ids) - 1}' in order (got {ids})")
-        q = {"type": "score", "instructions": question,
-             "criteria": [o.description for o in opts]}
-    elif qtype == "choice":
-        q = {"type": "choice", "instructions": question,
-             "criteria": {o.id: o.description for o in opts}}
-    else:
-        raise ValueError(f"the shorthand supports qtype noul | choice | "
-                         f"score (got {qtype!r}); use `questions` for "
-                         "other types")
-    data["questions"] = {"decision": q}
-    return data
-
-
-class DecisionsRequest(OpenAIBaseModel):
-    """POST /v1/decisions. Unknown top-level fields are ignored (logged by
-    OpenAIBaseModel); unknown fields inside a question are rejected."""
+class DecisionsQuery(OpenAIBaseModel):
+    """One query for the serving path, built by either wire. Unknown
+    fields inside a question are rejected."""
 
     model: str | None = Field(
         default=None, description="Echoed in the response, aliases "
@@ -173,15 +122,6 @@ class DecisionsRequest(OpenAIBaseModel):
         "map per block, e.g. {\"audit\": \"full\", \"backend\": "
         "\"none\"}. full: everything. basic: without per-option lists. "
         "none: leave the block out.")
-
-    @model_validator(mode="before")
-    @classmethod
-    def _shorthand(cls, data):
-        if not isinstance(data, dict):
-            return data
-        if any(k in data for k in _SHORTHAND_KEYS):
-            return expand_shorthand(data)
-        return data
 
     @field_validator("questions", mode="before")
     @classmethod

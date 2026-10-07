@@ -51,10 +51,16 @@ from vllm.entrypoints.generate.decisions.backends.answer_schema import (
     build_answer,
 )
 from vllm.entrypoints.generate.decisions.backends.host import BackendHost
+from vllm.entrypoints.generate.decisions.openai_protocol import (
+    ChoiceQuestion,
+    DecisionsRequest,
+    PredicateQuestion,
+    option_id,
+)
 from vllm.entrypoints.generate.decisions.protocol import (
     MODEL_ALIASES,
     CompiledQuestion,
-    DecisionsRequest,
+    DecisionsQuery,
 )
 from vllm.entrypoints.generate.decisions.question_types import (
     get_question_type,
@@ -694,15 +700,17 @@ class ServingDecisions(BaseServing):
             return MODEL_ALIASES.get(requested, requested)
         return self.models.model_name(None)
 
-    async def create_decisions(
+    async def answer_query(
         self,
-        request: DecisionsRequest,
+        request: DecisionsQuery,
         raw_request: Request | None = None,
+        label=repr,
     ):
         """Answer every question concurrently over the shared state
         prefix. A failed question goes to partial_failures; the request
         fails only when every question failed (first failure in request
-        order, with its status code)."""
+        order, with its status code; `label(qid)` names it). Both wires
+        project this result."""
         from .compile import compile_question
 
         if self.engine_client.errored:
@@ -766,7 +774,7 @@ class ServingDecisions(BaseServing):
         if not answers:
             qid, (message, code) = next(iter(failures.items()))
             return self.create_error_response(
-                f"question {qid!r} failed: {message}",
+                f"question {label(qid)} failed: {message}",
                 status_code=HTTPStatus(code))
 
         result = {
@@ -783,3 +791,72 @@ class ServingDecisions(BaseServing):
             result["partial_failures"] = {q: m for q, (m, _) in
                                           failures.items()}
         return result
+
+    async def create_decisions(
+        self,
+        request: DecisionsRequest,
+        raw_request: Request | None = None,
+    ):
+        """POST /v1/decisions: OpenAI's format over `answer_query`."""
+        result = await self.answer_query(request.to_query(), raw_request,
+                                         label=request.label)
+        if isinstance(result, ErrorResponse):
+            return result
+        return project_openai(request, result)
+
+
+def _openai_answer(question, answer: dict | None,
+                   error: str | None) -> dict:
+    """One internal answer -> OpenAI's answer for `question`. A failed
+    question is a refusal carrying the reason in `extra.error`."""
+    out: dict = {"name": question.name}
+    if answer is None:
+        out.update(type="refusal", extra={"error": error})
+        return out
+    probs = answer["probabilities"]
+    if isinstance(question, PredicateQuestion):
+        out.update(type="predicate", probability=answer["noul"])
+    elif isinstance(question, ChoiceQuestion):
+        ids = [option_id(c.value) for c in question.choices]
+        out.update(
+            type="choice",
+            choice=question.choices[ids.index(answer["choice"])].value,
+            probabilities=[{"value": c.value, "probability": probs[i]}
+                           for c, i in zip(question.choices, ids)],
+            confidence=answer["confidence"])
+    else:
+        out.update(
+            type="score", score=answer["score"],
+            probabilities=[{"value": i, "label": lv.label,
+                            "probability": probs[str(i)]}
+                           for i, lv in enumerate(question.levels)],
+            confidence=answer["confidence"])
+    if "extra" in answer:
+        out["extra"] = answer["extra"]
+    return out
+
+
+def project_openai(request: DecisionsRequest, result: dict) -> dict:
+    """An `answer_query` result -> OpenAI's Decisions response: answers
+    in question order, failures as refusals, OpenAI's usage, and our id
+    and created under `extra`."""
+    failures = result.get("partial_failures") or {}
+    answers = [_openai_answer(q, result["answers"].get(str(i)),
+                              failures.get(str(i)))
+               for i, q in enumerate(request.questions)]
+    usage = result["usage"]
+    tokens = usage["input_tokens"]
+    return {
+        "model": result["model"],
+        "answers": answers,
+        "usage": {
+            "input_tokens": tokens,
+            "input_tokens_details": {
+                "cached_tokens": usage["cached_input_tokens"] or 0,
+                "cache_write_tokens": 0},
+            "output_tokens": 0,
+            "output_tokens_details": {"reasoning_tokens": 0},
+            "total_tokens": tokens,
+        },
+        "extra": {"id": result["id"], "created": result["created"]},
+    }
