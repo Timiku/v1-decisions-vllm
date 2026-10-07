@@ -252,10 +252,12 @@ class ServingDecisions(BaseServing):
         wd_capacity = self.host.wide_direct_capacity()
         direct_capacity = len(self.host.limits.markers)
         logger.info(
-            "decision readouts: direct up to %d, wide-direct up to %s, "
-            "two-stage beyond (read limit %s: max_logprobs=%s, "
-            "token-id cap=%s)", direct_capacity,
+            "decision readouts: direct up to %d, wide-direct up to %s "
+            "(exact), top-k wide-direct up to %d, two-stage beyond "
+            "(read limit %s: max_logprobs=%s, token-id cap=%s)",
+            direct_capacity,
             wd_capacity if wd_capacity is not None else "uncapped",
+            self.host.wide_direct_capacity(capped=False),
             read_limit if read_limit is not None else "uncapped",
             getattr(engine_client.model_config, "max_logprobs", "none"),
             token_id_cap if token_id_cap is not None else "none")

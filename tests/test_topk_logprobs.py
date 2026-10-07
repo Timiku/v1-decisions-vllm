@@ -110,11 +110,37 @@ class TestTopkWide:
         assert len(res.meta["floored"]) == 10
         assert _best(res) == "o3"
 
-    def test_exact_auto_past_read_limit_is_two_stage(self, no_sleep):
+    def test_exact_auto_past_read_limit_reads_topk(self, no_sleep):
+        # exact can't read 30 labels past a read limit of 20: auto keeps
+        # the one-pass wide-direct read and takes it from the window
+        k = 30
+        ids = [65 + i for i in range(k)]
+        engine = _RetryEngine([_lp(*ids[:20], favour=ids[3])])
+        backend = _backend(engine, logprobs="exact", read_limit=20)
+        res = asyncio.run(backend.read(_question(k), "rid"))
+        assert getattr(engine.params[-1], "logprob_token_ids", None) is None
+        assert res.meta["readout"] == "wide-direct"
+        assert res.meta["logprobs"] == "top-k"
+        assert res.forward_passes == 1
+        assert _best(res) == "o3"
+
+    def test_exact_auto_within_read_limit_stays_exact(self, no_sleep):
+        k = 30
+        ids = [65 + i for i in range(k)]
+        engine = _RetryEngine([_lp(*ids, favour=ids[3])])
+        backend = _backend(engine, logprobs="exact", read_limit=64)
+        res = asyncio.run(backend.read(_question(k), "rid"))
+        assert engine.params[-1].logprob_token_ids == ids
+        assert res.meta["readout"] == "wide-direct"
+        assert "logprobs" not in res.meta
+
+    def test_auto_past_tokenizer_capacity_is_two_stage(self, no_sleep):
+        # two-stage is the last resort: only past wide-direct's capacity
         k = 30
         engine = _RetryEngine([_lp(65, 66, favour=65)] * k
                               + [_lp(*[65 + i for i in range(16)])])
         backend = _backend(engine, logprobs="exact", read_limit=20)
+        backend.host.wide_direct_capacity = lambda capped=True: 20
         res = asyncio.run(backend.read(_question(k), "rid"))
         assert res.meta["readout"] == "two-stage"
 

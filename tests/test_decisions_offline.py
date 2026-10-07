@@ -780,13 +780,26 @@ class TestEngineReadLimit:
         limit, cap = engine_read_limit(cfg)
         assert limit == 600  # token-id cap binds
 
-    def test_auto_two_stage_when_max_logprobs_small(self):
-        # k=40, max_logprobs=20: wide-direct would need 40 one-pass
-        # logprobs the engine can't serve -> two-stage
+    def _auto_route(self, s, k):
+        """(readout, logprobs) auto picks for k options, without reading."""
+        seen = {}
+
+        async def spy(question, request_id, labels=None,
+                      readout_name="direct", layout_name="direct",
+                      logprobs="exact"):
+            seen.update(readout=readout_name, logprobs=logprobs)
+            return None
+
+        s.decision_backend._direct_read = spy
+        asyncio.run(s.decision_backend.read(self._req(k), "r"))
+        return seen["readout"], seen["logprobs"]
+
+    def test_auto_topk_when_max_logprobs_small(self):
+        # k=40, max_logprobs=20: an exact wide-direct read would need 40
+        # one-pass logprobs the engine can't serve -> wide-direct, top-k
         s = self._serving_with(max_logprobs=20)
         try:
-            result = asyncio.run(s.decision_backend.read(self._req(40), "r"))
-            assert result.meta.get("readout") == "two-stage"
+            assert self._auto_route(s, 40) == ("wide-direct", "top-k")
         finally:
             set_limits_for_tests(DecisionLimits())
 
@@ -799,13 +812,11 @@ class TestEngineReadLimit:
         finally:
             set_limits_for_tests(DecisionLimits())
 
-    def test_auto_two_stage_beyond_128(self):
+    def test_auto_topk_beyond_128(self):
         # the token-id cap, not max_logprobs, is the binding limit here
         s = self._serving_with(max_logprobs=600, token_id_cap=128)
         try:
-            result = asyncio.run(
-                s.decision_backend.read(self._req(200), "r"))
-            assert result.meta.get("readout") == "two-stage"
+            assert self._auto_route(s, 200) == ("wide-direct", "top-k")
         finally:
             set_limits_for_tests(DecisionLimits())
 

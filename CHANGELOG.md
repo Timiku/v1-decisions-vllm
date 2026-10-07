@@ -10,6 +10,11 @@
   server, and it works under speculative decoding. Server default via
   `VLLM_TYPED_DECISIONS_BACKEND=logit:logprobs=top-k`, per request via
   `backend_options.logprobs`.
+- `auto` with `exact`: past the engine's read limit, the wide-direct
+  read switches to `top-k` instead of falling back to two-stage. On a
+  stock 27B server (window 20) that was more accurate at 64-255 options
+  (95/90/84 vs 85/83/62 of 100) and about 10x faster. Two-stage is now
+  only the last resort, past the tokenizer's wide-direct capacity.
 - Fix: the degraded fallback scored a marker outside the window as
   -inf, and the response failed JSON encoding (HTTP 400 "Out of range
   float values"). It now takes the window's lowest logprob, and any

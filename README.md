@@ -198,25 +198,28 @@ for. `-1` means no limit.
 the most token ids one request may name.
 
 The server reads both at startup and logs what fits, for example
-`decision readouts: direct up to 26, wide-direct up to 128, two-stage beyond (read limit 128: max_logprobs=600, token-id cap=128)`. `auto`
-never picks a read that doesn't fit: past the limit it uses the
-two-stage read, which works on any setting. A request that asks for a
-one-pass read that doesn't fit gets a per-question error naming the
-setting to raise.
+`decision readouts: direct up to 26, wide-direct up to 128 (exact), top-k wide-direct up to 386, two-stage beyond (read limit 128: max_logprobs=600, token-id cap=128)`. `auto`
+never picks a read that doesn't fit: past the limit an `exact` read
+switches to a `top-k` wide-direct read (see [Logprobs](#logprobs-exact-or-top-k)),
+which has no per-label limit, and only past the tokenizer's wide-direct
+capacity does it use the two-stage read. A request that explicitly asks
+for an `exact` one-pass read that doesn't fit gets a per-question error
+naming the setting to raise.
 
 A `top-k` read names no token ids, so these limits don't bound it:
 `auto` uses one-pass wide-direct up to the tokenizer's capacity on any
 setup, and `--max-logprobs` only sets the size of the window it reads
 (bigger is closer to `exact`).
 
-|Server setup|One pass up to, `exact`|One pass up to, `top-k`|
+|Server setup|`exact` up to (then `auto` reads `top-k`)|One pass up to, `top-k`|
 |-|-:|-:|
 |stock vLLM, default `--max-logprobs`|20 (markers capped to 20, with a warning)|255 (window 20)|
 |stock vLLM, `--max-logprobs 128` or more|128|255 (window 128)|
 |`--max-logprobs 600` + `patches/max-logprob-token-ids.patch`|255 (the tokenizer's wide-direct capacity on Qwen)|255 (window 600)|
 
-Past the one-pass limit, both use two-stage. 255 is the package's
-option limit; the wide-direct capacity on Qwen is higher.
+Two-stage is the last resort, past the tokenizer's wide-direct
+capacity (386 on Qwen); 255 is the package's option limit, so on Qwen
+`auto` never reaches it.
 
 The optional patch is a one-line change to that constant; `install.sh`
 doesn't apply it. An explicitly configured marker set larger than
@@ -244,7 +247,8 @@ state); the top `SHORTLIST` options go through a direct read; the
 finalists share the stage-1 mass. Costs k+1 reads.
 
 The default, `auto`, picks the first read that fits: direct, then
-wide-direct, then two-stage. In paired A/B runs on 32 to 255 options,
+wide-direct (`exact` within the read limits, `top-k` past them), then
+two-stage. In paired A/B runs on 32 to 255 options,
 wide-direct was more accurate than two-stage on Qwen3-4B (+0.12 pooled,
 97.5% CI +0.07 to +0.18) and level on Qwen3.8-27B at 32 and 64 options
 (+0.06 at 124). It takes one pass instead of k+1, and on the 4B it
@@ -503,7 +507,7 @@ diagnostics, send the same `questions` block to `/v1/decisions`.
 
 ||Jev|This endpoint|
 |-|-|-|
-|Choice options|up to 255|up to 255 (`VLLM_TYPED_DECISIONS_MAX_OPTIONS`); more than the marker count uses the wide-direct read on the `logit` backend (two-stage past the [read limits](#read-limits) with `exact`)|
+|Choice options|up to 255|up to 255 (`VLLM_TYPED_DECISIONS_MAX_OPTIONS`); more than the marker count uses the wide-direct read on the `logit` backend (read `top-k` past the [read limits](#read-limits) with `exact`)|
 |Structured `instructions`|field references resolved natively|rendered as JSON; backtick references stay literal text|
 |`model`|selects a Jev model|a label only. `jev-latest` and `jev-preview` are echoed as `jev-1.13.0`; other ids are echoed unchanged. The served checkpoint is whatever vLLM loaded.|
 |Calibration|server-side|server-side: the operator's T or the startup calibration (see [Calibration](#calibration)); no per-request override on this wire|

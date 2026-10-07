@@ -10,7 +10,8 @@ Per-request options (`backend_options`): `readout` picks how options are
 read: `direct` (one marker per option, up to the marker count),
 `wide-direct` (markers plus single-token letter pairs, one pass),
 `two-stage` (a yes/no read per option, then a direct read of the
-finalists), or `auto` (direct within the marker count, else two-stage).
+finalists), or `auto` (direct within the marker count, then
+wide-direct, then two-stage; see `read`).
 
 `logprobs` picks how a read gets the markers' logprobs: `exact` (the
 engine's logprob_token_ids, every marker exact) or `top-k` (the engine's
@@ -77,20 +78,26 @@ class LogitBackend:
         exact = mode == "exact"
         if readout == "auto":
             # direct within the marker count; then wide-direct up to its
-            # capacity on this tokenizer, never past the engine's read
-            # limit (a stock vLLM caps --max-logprobs and the token-id
-            # count; a top-k read has no per-label limit); else
-            # two-stage. In paired A/B runs, wide-direct was as accurate
-            # as two-stage or better, with one pass instead of k+1: more
-            # accurate on the 4B, level on the 27B at 32/64 options,
-            # about 2x faster on the 4B.
+            # capacity on this tokenizer. An exact read can't pass the
+            # engine's read limit (a stock vLLM caps --max-logprobs and
+            # the token-id count), so past it an exact wide-direct read
+            # switches to top-k, which has no per-label limit; two-stage
+            # only past the tokenizer's capacity. In paired A/B runs,
+            # wide-direct was as accurate as two-stage or better, with
+            # one pass instead of k+1: more accurate on the 4B, level on
+            # the 27B at 32/64 options, about 2x faster on the 4B. On a
+            # stock 27B server (window 20), top-k wide-direct beat exact
+            # two-stage at 64-255 options (95/90/84 vs 85/83/62 of 100)
+            # and was about 10x faster.
             if k <= len(limits.markers):
                 readout = "direct"
+            elif k <= self.host.wide_direct_capacity(capped=exact):
+                readout = "wide-direct"
+            elif k <= self.host.wide_direct_capacity(capped=False):
+                readout = "wide-direct"
+                mode, exact = "top-k", False
             else:
-                readout = ("wide-direct"
-                           if k <= self.host.wide_direct_capacity(
-                               capped=exact)
-                           else "two-stage")
+                readout = "two-stage"
         if readout == "two-stage":
             from .large_choice import two_stage_read
             return await two_stage_read(self, question, request_id, limits,
