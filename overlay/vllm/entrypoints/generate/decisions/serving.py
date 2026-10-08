@@ -54,6 +54,7 @@ from vllm.entrypoints.generate.decisions.backends.host import BackendHost
 from vllm.entrypoints.generate.decisions.openai_protocol import (
     ChoiceQuestion,
     DecisionsRequest,
+    PluginQuestion,
     PredicateQuestion,
     option_id,
 )
@@ -814,6 +815,10 @@ def _openai_answer(question, answer: dict | None,
         out.update(type="refusal", extra={"error": error})
         return out
     probs = answer["probabilities"]
+    if isinstance(question, PluginQuestion):
+        # a plugin type has no OpenAI shape: its whole answer
+        out.update(answer)
+        return out
     if isinstance(question, PredicateQuestion):
         out.update(type="predicate", probability=answer["noul"])
     elif isinstance(question, ChoiceQuestion):

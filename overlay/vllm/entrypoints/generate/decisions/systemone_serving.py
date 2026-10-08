@@ -2,8 +2,9 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """/v1/systemone: a projection of /v1/decisions.
 
-The Jev request is answered by `answer_query` unchanged, then each
-answer is reduced to its question type's `jev_fields`. No readout,
+The Jev request is answered by `answer_query` unchanged, then each Jev
+answer is reduced to its question type's `jev_fields` (a plugin type's
+answer is returned whole). No readout,
 calibration or failure handling of its own: whatever /v1/decisions
 returns for the same questions, this returns minus `extra` and the
 decisions-only envelope fields. tests/test_unify.py holds that as the
@@ -30,8 +31,12 @@ except ImportError:  # locked fork moved engine protocol to openai
 
 def project_answer(answer: dict) -> dict:
     """An internal answer -> the Jev answer: `type`, the type's Jev
-    fields, and `extra` when the request's detail kept any."""
+    fields, and `extra` when the request's detail kept any. A type that
+    is not one of Jev's has no Jev shape, so its answer is returned
+    whole."""
     qt = get_question_type(answer["type"])
+    if not qt.jev:
+        return dict(answer)
     out = {"type": answer["type"],
            **{k: answer[k] for k in qt.jev_fields}}
     if "extra" in answer:

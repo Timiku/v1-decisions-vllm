@@ -1,10 +1,10 @@
-# v1/decisions: Typed Decisions (Jev) for vLLM
+# v1/decisions: Typed Decisions for vLLM
 
 This repository proposes a first-class vLLM endpoint, **/v1/decisions**. It unifies the existing typed-decision (Jev-compatible) backends under one API, and is designed so the protocol is easy to extend in future open-source work.
 
-A typed decision returns a probability distribution over a fixed set of options instead of generated text. You send a state (the evidence) and one or more typed questions. For each question, the server reads the answer from the model's logits in a single forward pass and returns calibrated probabilities.
+A typed decision returns a probability distribution over a fixed set of options instead of generated text. You send the input (the evidence) and one or more typed questions. For each question, the server reads the answer from the model's logits in a single forward pass and returns calibrated probabilities.
 
-/v1/decisions speaks OpenAI's Decisions format, so a client built with the OpenAI SDK can point at a self-hosted model. Everything OpenAI's format has no field for (per-request calibration, backend selection and options, a seed, and diagnostics) goes in an `extra` block. Backends and question types are both pluggable. /v1/systemone speaks the request format of TypeSafe's Jev API, so existing Jev clients can point at a self-hosted model too. Both are answered by the same code path: the same question gives the same probabilities on either endpoint.
+/v1/decisions speaks OpenAI's Decisions format, so a client built with the OpenAI SDK can point at a self-hosted model. Everything OpenAI's format has no field for (per-request calibration, backend selection and options, a seed, and diagnostics) goes in an `extra` block. Backends are pluggable, and so are question types (see [Extending the API](#extending-the-api)). /v1/systemone speaks the request format of TypeSafe's Jev API, so existing Jev clients can point at a self-hosted model too. Both are answered by the same code path: the same question gives the same probabilities on either endpoint.
 
 The endpoint is proposed for upstream vLLM. This repository contains a patch with all the changes demonstrating the
 reference implementation, built as an overlay on stock vLLM **v0.30.0**.
@@ -56,10 +56,11 @@ v0.30.0 with this package, 2 consumer GPUs (RTX 3090 Ti + 3090).
 **Speed, JevBench board method** (one request at a time, caller wall
 time, the board's formula and self-hosted adjustment of latency ×2 +
 0.15 s): p50 0.164 s, p95 0.455 s, speed score **83.0** (91.3
-unadjusted). Jev's hosted API scores 83.3. `/v1/decisions` is as fast.
+unadjusted). Jev's hosted API scores 83.3. `/v1/decisions` runs the same code path
+but was not timed separately.
 
-**Many questions about one state.** Put all questions in one request and
-the shared state is prefilled once through vLLM's prefix cache. On
+**Many questions about one input.** Put all questions in one request and
+the shared input is prefilled once through vLLM's prefix cache. On
 Qwen3-4B (BF16) with a ~4.2k-token state and 16 questions:
 
 ||per decision|decisions/s|
@@ -133,11 +134,13 @@ Ask a question:
 
 ```bash
 curl -s localhost:8000/v1/decisions -H 'Content-Type: application/json' -d '{
-  "state": "Ticket: My payouts have been failing for 3 days.",
-  "questions": {
-    "department": {"type": "choice", "instructions": "Which team should handle this?",
-                   "criteria": {"billing": "Payments, refunds", "technical": "Bugs, outages"}}
-  }
+  "model": "Qwen/Qwen3.5-0.8B",
+  "input": "Ticket: My payouts have been failing for 3 days.",
+  "questions": [
+    {"type": "choice", "name": "department", "instructions": "Which team should handle this?",
+     "choices": [{"value": "billing", "description": "Payments, refunds"},
+                 {"value": "technical", "description": "Bugs, outages"}]}
+  ]
 }'
 ```
 
@@ -325,7 +328,7 @@ OpenAI's Decisions format (OpenAI's public beta of 2026-10-06), plus an
 built with the OpenAI SDK works unchanged (`client.decisions.create(...)`
 with `base_url` pointing at the server); the `extra` block goes in
 `extra_body`. Where OpenAI leaves behaviour open, the endpoint does what
-vLLM's own draft of the API does
+vLLM's own PR for the API does
 ([#60465](https://github.com/vllm-project/vllm/pull/60465)). The
 deliberate differences are listed in
 [Differences from OpenAI and from upstream](#differences-from-openai-and-from-upstream).
@@ -366,6 +369,12 @@ deliberate differences are listed in
 |`predicate`|`instructions`, `name?`|`probability`: P(true)|
 |`choice`|`instructions`, `name?`, `choices`: 2 to 255 of `{value, description?}`; a value is a string or a boolean, and `"true"` and `true` are different choices|`choice`: the most probable value; `probabilities`: `[{value, probability}]` in choice order; `confidence`|
 |`score`|`instructions`, `name?`, `levels`: 2 to 10 of `{label, description?}`, lowest first|`score`: Σ i·pᵢ over level indices, can fall between levels; `probabilities`: `[{value: i, label, probability}]`; `confidence`|
+
+A question may also be any registered plugin type
+([Extending the API](#extending-the-api)): its own fields, checked by the
+type, plus the optional `name`. Its answer is the type's own answer
+fields with `name` and `type`, the same as on `/v1/systemone`. Jev's
+`noul` is not accepted here; `predicate` is the yes/no type.
 
 Each question is read as one of Jev's question types (a predicate as a
 `noul` without criteria, a choice as a `choice`, a score as a `score`),
@@ -487,7 +496,7 @@ produced:
 
 ### Differences from OpenAI and from upstream
 
-Same as vLLM's draft (#60465): the request fields, refusing unknown
+Same as vLLM's PR (#60465): the request fields, refusing unknown
 fields, the input joining, refusing images, the name rules, typed choice
 values, 2 to 10 levels, the score as a weighted average of level
 indices, OpenAI's usage shape, and answers in question order.
@@ -505,6 +514,7 @@ Deliberately different, each one additive (a client that ignores
 |Prompt renders|unpublished / own renders|Jev's renders, byte for byte|the saved calibration stays valid|
 |Invalid request|400 / 400|400|same|
 |Images|accepted / refused|refused|no backend reads images yet|
+|Question types|predicate, choice, score|those three, plus any registered plugin type, answered with the type's own fields|a plugin type is reachable on both endpoints|
 |Backends, calibration, startup self-check|n/a / logit only, none|`logit`, `encoder`, `canvas`, plugins; startup calibration; answer-slot self-check|the point of this package|
 
 ## `POST /v1/systemone`
@@ -535,7 +545,9 @@ The Jev request and response format. A request is
 |`choice`|option id → description (or `null`), 2 to 255 options|`choice`, `probabilities` (id → p), `confidence`|
 |`score`|ordered list of 2 to 10 level descriptions; level ids are `"0"`…`"k-1"`|`score`, `legend` (level id → description), `probabilities`, `confidence`|
 
-Only Jev's question types are accepted. The server answers through
+Any registered plugin type is accepted too, and its answer comes back
+whole (`type`, `probabilities`, `confidence`, the type's own fields,
+`extra`), since it has no Jev shape. The server answers through
 exactly the same path as `/v1/decisions`, then keeps Jev's fields: the
 same question gives the same probabilities on both endpoints
 (`tests/test_unify.py` and `tests/test_openai_wire.py` hold that as a
@@ -559,6 +571,7 @@ failed, `partial_failures: {id: message}`.
 |`model`|selects a Jev model|a label only. `jev-latest` and `jev-preview` are echoed as `jev-1.13.0`; other ids are echoed unchanged. The served checkpoint is whatever vLLM loaded.|
 |Calibration|server-side|server-side: the operator's T or the startup calibration (see [Calibration](#calibration)); a request may override it with `extra.calibration_temperature`|
 |Partial failure|whole request fails|successful answers return; failed ones are listed in `partial_failures`|
+|Question types|noul, choice, score|those three, plus any registered plugin type|
 |Extra response fields|none|`id`, `created`, and each answer's `extra` (unless `detail` is `none`)|
 |Settings at the top level|n/a|`calibration_temperature`, `seed`, `backend_options` are refused with 422: send them under `extra`|
 
@@ -701,9 +714,16 @@ the `vllm.decision_backends` entry-point group. Full guide:
 **A new question type**: a `QuestionType` with a `name`, a pydantic
 `model` for the question JSON, `options(question)` returning the closed
 option set, and `answer(probabilities, options)` returning the type's
-answer fields. Set `jev = True` (with `jev_fields`) only for types that
-are part of the Jev wire; the others are accepted on `/v1/decisions`
-only. Register with `register_question_type` or the
+answer fields. Once registered, the type is accepted on both
+endpoints: `/v1/decisions` takes it next to OpenAI's three types (plus
+OpenAI's optional `name`), and `/v1/systemone` next to Jev's. Both
+return its whole answer: `type`, `probabilities`, `confidence`, the
+type's own fields, and `extra`. The names `predicate` and `refusal` are
+reserved by OpenAI's format. `jev = True` (with `jev_fields`) is only
+for Jev's own types, which `/v1/systemone` cuts down to Jev's fields.
+An OpenAI SDK client reads a plugin answer's fields as attributes
+(`answer.label`); the SDK doesn't type-check answers it doesn't know.
+Register with `register_question_type` or the
 `vllm.decision_question_types` entry-point group. The built-in noul,
 choice and score in `question_types.py` are complete examples.
 
@@ -810,7 +830,7 @@ key, the date and the vLLM version.
  "expected": "a", "group": "optional-id", "id": "optional"}
 ```
 
-`question` is a typed question as in a request. `expected` is the correct
+`question` is a typed question as in a `/v1/systemone` request. `expected` is the correct
 option id; for `noul`, `yes`/`no` or `true`/`false`; for `score`, the
 level number. Questions that share a `group` stay in the same
 cross-validation fold. At least 50 questions must come back with an
@@ -927,54 +947,6 @@ consistent with quantization but doesn't isolate it.
 public set and scored 0.856 on the hard tier.
 * On a separate SemIf eval render, the fitted T was 0.505, taking ECE from
 0.073 to 0.016 out-of-fold.
-
-## Why a separate `/v1/decisions`
-
-The full API could have been `/v1/systemone` with extra fields. It is
-a separate endpoint for these reasons:
-
-* **Each wire matches a published format.** `/v1/decisions` takes and
-returns OpenAI's Decisions format; `/v1/systemone` takes and returns
-Jev's. A client written for either gets the behaviour it expects. Our
-additions (per-request temperature, backend choice and options, seed,
-diagnostics) sit in one `extra` block on both, which a client of either
-format never has to send or read. Neither schema has to bend to fit the
-other.
-* **The design is modular and open.** Question types and backends are
-plugins: anyone can add a new kind of question or a new decision model
-without touching the core. Jev is one example of a decision API, 
-but is not feature-complete or open-source.
-* **Raw probabilities and an audit trail are part of the API.** Every
-answer can carry the backend's raw per-option scores
-(`extra.backend.option_logits`; their softmax is the uncalibrated
-distribution) next to the calibrated probabilities, and an `audit`
-block with the same schema on every backend: the model that answered,
-a hash of the input, the prompt version, the T applied and where it
-came from, the read used, forward passes, prompt and cached tokens,
-and `option_mass` (how sure the model was that an option was the
-answer at all). A caller can recalibrate, verify or debug an answer
-without trusting the server's summary, and choose how much of this to
-receive (`extra.detail`: `full`, `basic`, `none`). Neither OpenAI's
-nor Jev's schema has a place for any of it, so it lives in `extra`.
-* **The name says what it does.** vLLM's routes name what they return
-(`/v1/completions`, `/v1/embeddings`), and `/v1/decisions` follows
-that; since 2026-10-06 it is also OpenAI's name for this API.
-`systemone` is a product-specific name (it evokes "System 1" fast
-thinking) and says little to someone reading vLLM's route list.
-* **Each wire can follow its owner.** If OpenAI or TypeSafe changes its
-API, the matching endpoint follows it without breaking the other's
-clients.
-* **One implementation, two views.** Both endpoints turn their request
-into one internal query, answered by one code path, and project the
-result into their own format. The second endpoint adds no second
-code path; `tests/test_unify.py` and `tests/test_openai_wire.py` hold
-the two to the same answers.
-* **It is close to upstream.** vLLM's own draft
-([#60465](https://github.com/vllm-project/vllm/pull/60465)) puts
-OpenAI's format at `/v1/decisions` over the structured-decisions core
-([#59299](https://github.com/vllm-project/vllm/pull/59299)). This
-endpoint behaves like it wherever OpenAI leaves behaviour open, so
-the additions above can be offered as small follow-ups to it.
 
 ## Lineage
 

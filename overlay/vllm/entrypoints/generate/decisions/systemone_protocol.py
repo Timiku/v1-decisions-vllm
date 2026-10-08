@@ -3,10 +3,10 @@
 """SystemOne (Jev-compatible) wire: the Jev request and response shapes.
 
 `/v1/systemone` answers through the same path as `/v1/decisions`: the
-request is validated here (Jev's fields, and only the question types
-marked `jev` in the registry), plus the same `extra` block as
-`/v1/decisions`; each answer is reduced to its type's `jev_fields` and
-its `extra`. Nothing is computed differently for this wire.
+request is validated here (Jev's fields, any registered question type),
+plus the same `extra` block as `/v1/decisions`. A Jev type's answer is
+reduced to its `jev_fields` and its `extra`; a plugin type's answer comes
+back whole. Nothing is computed differently for this wire.
 
 Differences from the hosted Jev API are listed in the README under
 "Differences from the Jev API".
@@ -37,8 +37,8 @@ class SystemOneRequest(OpenAIBaseModel):
     state: str | dict | list = Field(
         ..., description="The content to evaluate.")
     questions: dict[str, Any] = Field(
-        ..., description="Caller-chosen id -> typed question (Jev's types "
-        "only).")
+        ..., description="Caller-chosen id -> typed question: Jev's types "
+        "or any registered plugin type.")
     backend: str | None = Field(
         default=None, description="Readout backend override (logit | "
         "encoder | canvas | <plugin>) for every question in the request.")
@@ -50,7 +50,7 @@ class SystemOneRequest(OpenAIBaseModel):
     @field_validator("questions", mode="before")
     @classmethod
     def _parse_questions(cls, v):
-        return parse_questions(v, jev_only=True)
+        return parse_questions(v)
 
     @field_validator("questions")
     @classmethod
@@ -89,7 +89,7 @@ class SystemOneResponse(OpenAIBaseModel):
         ..., description="Each answer: `type` plus its type's Jev fields "
         "(noul: noul; choice: choice, probabilities, confidence; score: "
         "score, legend, probabilities, confidence), plus `extra` at the "
-        "request's detail.")
+        "request's detail. A plugin type's answer comes back whole.")
     usage: SystemOneUsage
     partial_failures: dict[str, str] | None = Field(
         default=None, description="qid -> error for questions that failed; "

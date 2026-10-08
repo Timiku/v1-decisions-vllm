@@ -11,13 +11,14 @@ A question type owns four things:
   over a closed option set; that is the one thing backends rely on;
 - its **answer** (`answer(probabilities, options)`): the type-specific
   answer fields built from that distribution (`noul`, `choice`, ...);
-- its **Jev projection** (`jev`, `jev_fields`): whether `/v1/systemone`
-  accepts it, and which answer fields that wire returns.
+- its **Jev projection** (`jev`, `jev_fields`): whether it is one of
+  Jev's own types, and which answer fields `/v1/systemone` returns for it.
 
 Jev's three types (noul, choice, score) are the built-in entries. A new
 type registers itself with `register_question_type` (directly, or from a
 package advertising the `vllm.decision_question_types` entry-point group)
-and is then accepted by `/v1/decisions` with no change to the core.
+and is then accepted by both `/v1/decisions` and `/v1/systemone` with no
+change to the core. Both return its whole answer.
 """
 from __future__ import annotations
 
@@ -57,6 +58,8 @@ class QuestionType:
 
     name: ClassVar[str]
     model: ClassVar[type[QuestionModel]]
+    # True only for Jev's own types: /v1/systemone then returns just
+    # `jev_fields`; any other type comes back with its whole answer
     jev: ClassVar[bool] = False
     # answer keys /v1/systemone returns besides `type` (jev types only)
     jev_fields: ClassVar[tuple[str, ...]] = ()
@@ -201,6 +204,9 @@ class Score(QuestionType):
 
 _TYPES: dict[str, QuestionType] = {}
 
+# OpenAI's own type names on /v1/decisions; a plugin can't take them
+RESERVED_NAMES = ("predicate", "refusal")
+
 
 def register_question_type(qt: QuestionType) -> None:
     """Make a question type available by its `name`. Re-registering an
@@ -210,6 +216,9 @@ def register_question_type(qt: QuestionType) -> None:
         raise ValueError(f"{type(qt).__qualname__} needs a `name`")
     if name in _TYPES:
         raise ValueError(f"question type {name!r} is already registered")
+    if name in RESERVED_NAMES:
+        raise ValueError(f"question type {name!r}: the name is reserved "
+                         "by OpenAI's Decisions format")
     if not issubclass(qt.model, QuestionModel):
         raise ValueError(f"question type {name!r}: `model` must subclass "
                          "QuestionModel")

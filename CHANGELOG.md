@@ -10,7 +10,7 @@ OpenAI's request, or to `/v1/systemone`, which keeps the Jev format.
   of `input_text` parts), `questions[]` (`predicate`, `choice` with string
   or boolean values, `score` with 2-10 levels), `safety_identifier`
   (accepted, ignored). Unknown fields, images and an explicit
-  `name: null` are refused with HTTP 400 (was 422), as in vLLM's draft
+  `name: null` are refused with HTTP 400 (was 422), as in vLLM's PR
   #60465. Input is joined as there: parts with a newline, messages with
   a blank line.
 - `/v1/decisions` response: `model`, `answers` in question order,
@@ -33,6 +33,11 @@ OpenAI's request, or to `/v1/systemone`, which keeps the Jev format.
   byte, so the saved temperature calibration still applies.
 - Choice questions take up to 255 choices (the server's limit), not
   #60465's 26.
+- Plugin question types work on both endpoints: `/v1/decisions` takes
+  any registered plugin type next to OpenAI's three (its own fields,
+  plus the optional `name`), and `/v1/systemone` takes it next to Jev's
+  (before, only `/v1/decisions` did). Both return the type's whole
+  answer. The names `predicate` and `refusal` are reserved for plugins.
 - `tools/capture_logits.py` posts to `/v1/systemone`;
   `tools/test_decisions.py` tests the OpenAI wire, and the OpenAI SDK
   parse when `openai` is installed.

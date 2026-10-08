@@ -74,8 +74,9 @@ its own prompt (the encoder does, for Laya).
 
 - **Cover every option.** Return a score for every id in
   `question.options`. If one can't be read, raise
-  `BackendError(message, option_ids)`: the question is reported in
-  `partial_failures` and the request's other questions still answer.
+  `BackendError(message, option_ids)`: the question comes back as a
+  `refusal` answer on `/v1/decisions` (in `partial_failures` on
+  `/v1/systemone`) and the request's other questions still answer.
 - **Return raw scores on a log scale** (logprobs, logits, or the log of
   averaged probabilities). Don't apply a temperature: the server applies
   the calibration temperature once, the same way for every backend:

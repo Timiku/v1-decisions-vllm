@@ -4,14 +4,16 @@
 
 The fields and their checks follow OpenAI's Decisions API, and where
 OpenAI leaves something open (how input is joined, what is refused),
-vLLM's own draft of it (vllm-project/vllm#60465). Differences, all
+vLLM's own PR for it (vllm-project/vllm#60465). Differences, all
 additive, are listed in the README under "Differences from OpenAI and
 from upstream":
 
 - `extra` carries the settings OpenAI has no field for (calibration
   temperature, backend, backend options, seed, detail);
 - a choice question takes up to 255 choices (the server's
-  VLLM_TYPED_DECISIONS_MAX_OPTIONS), not 26.
+  VLLM_TYPED_DECISIONS_MAX_OPTIONS), not 26;
+- a question may be any registered plugin type besides OpenAI's three:
+  its own fields, validated by the type, plus the optional `name`.
 
 Each OpenAI question becomes one of Jev's question types (predicate ->
 noul without criteria, choice -> choice, score -> score), so it renders
@@ -22,10 +24,13 @@ from __future__ import annotations
 import json
 from typing import Annotated, Any, Literal
 
-from pydantic import (ConfigDict, Field, PrivateAttr, StrictBool, StrictStr,
+from pydantic import (ConfigDict, Discriminator, Field, PrivateAttr,
+                      StrictBool, StrictStr, Tag, ValidationError,
                       field_validator, model_validator)
 
 from .protocol import DecisionsQuery, OpenAIBaseModel, normalize_extra
+from .question_types import (QuestionModel, get_question_type,
+                             question_type_names)
 
 ShortText = Annotated[StrictStr, Field(max_length=1048576)]
 InputText = Annotated[StrictStr, Field(max_length=10485760)]
@@ -120,8 +125,63 @@ class ScoreQuestion(_QuestionBase):
     levels: list[ScoreLevel] = Field(min_length=2, max_length=10)
 
 
-Question = Annotated[PredicateQuestion | ChoiceQuestion | ScoreQuestion,
-                     Field(discriminator="type")]
+class PluginQuestion(OpenAIBaseModel):
+    """A registered plugin type: the question as the type validated it,
+    and OpenAI's optional `name`. Built by `DecisionsRequest`."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    name: str | None = None
+    question: QuestionModel
+
+    @property
+    def type(self) -> str:
+        return self.question.type
+
+
+OPENAI_TYPES = ("predicate", "choice", "score")
+
+
+def plugin_type_names() -> list[str]:
+    """Registered types this wire takes besides OpenAI's: every type
+    that is not one of Jev's built-ins."""
+    return [n for n in question_type_names()
+            if not get_question_type(n).jev]
+
+
+def parse_plugin_question(q: dict) -> PluginQuestion:
+    """A question whose type is not OpenAI's: validated by its
+    registered type, with `name` taken off first."""
+    t = q.get("type")
+    allowed = plugin_type_names()
+    if t not in allowed:
+        raise ValueError(f"unknown question type {t!r} (one of: "
+                         f"{', '.join([*OPENAI_TYPES, *allowed])})")
+    body = dict(q)
+    if "name" in body and not isinstance(body["name"], str):
+        raise ValueError("name must be a string when provided")
+    name = body.pop("name", None)
+    try:
+        question = get_question_type(t).model.model_validate(body)
+    except ValidationError as e:
+        raise ValueError(f"{t} question: {e}") from None
+    return PluginQuestion(name=name, question=question)
+
+
+def _question_tag(v: Any) -> str | None:
+    if isinstance(v, PluginQuestion):
+        return "plugin"
+    if isinstance(v, dict):
+        return v.get("type")
+    return getattr(v, "type", None)
+
+
+Question = Annotated[
+    Annotated[PredicateQuestion, Tag("predicate")]
+    | Annotated[ChoiceQuestion, Tag("choice")]
+    | Annotated[ScoreQuestion, Tag("score")]
+    | Annotated[PluginQuestion, Tag("plugin")],
+    Discriminator(_question_tag)]
 
 
 def option_id(value: str | bool) -> str:
@@ -135,8 +195,11 @@ def value_text(value: str | bool) -> str:
 
 
 def to_jev_question(q: PredicateQuestion | ChoiceQuestion | ScoreQuestion
-                    ) -> dict:
-    """The Jev question that renders this one."""
+                    | PluginQuestion) -> dict | QuestionModel:
+    """The Jev question that renders this one (a plugin question is
+    already the registry's own question)."""
+    if isinstance(q, PluginQuestion):
+        return q.question
     if isinstance(q, PredicateQuestion):
         return {"type": "noul", "instructions": q.instructions}
     if isinstance(q, ChoiceQuestion):
@@ -202,6 +265,15 @@ class DecisionsRequest(_Strict):
     extra: DecisionsExtra = Field(default_factory=DecisionsExtra)
 
     _query: DecisionsQuery = PrivateAttr()
+
+    @field_validator("questions", mode="before")
+    @classmethod
+    def _plugin_questions(cls, v):
+        if not isinstance(v, list):
+            return v
+        return [parse_plugin_question(q)
+                if isinstance(q, dict) and q.get("type") not in OPENAI_TYPES
+                else q for q in v]
 
     @model_validator(mode="after")
     def _build_query(self):

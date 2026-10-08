@@ -4,7 +4,7 @@ Each test adds something the way a third-party package would, through
 the public registries only, and checks the whole request path picks it
 up:
 
-- a new question type (answered on /v1/decisions, refused on the Jev wire);
+- a new question type (answered on /v1/decisions and /v1/systemone);
 - a new backend that claims a model architecture, takes per-request
   options, and reports its own facts under extra.backend;
 - per-block `extra` control;
@@ -27,11 +27,15 @@ from vllm.entrypoints.generate.decisions.protocol import DecisionsQuery
 from vllm.entrypoints.generate.decisions.question_types import (
     QuestionModel, QuestionType, register_question_type)
 from vllm.entrypoints.generate.decisions.serving import ServingDecisions
+from vllm.entrypoints.generate.decisions.openai_protocol import (
+    DecisionsRequest)
 from vllm.entrypoints.generate.decisions.systemone_protocol import (
     SystemOneRequest)
+from vllm.entrypoints.generate.decisions.systemone_serving import (
+    ServingSystemOne)
 from vllm.entrypoints.serve.engine.protocol import ErrorResponse
 
-from test_unify import _Engine, _Models, _Renderer, _fake_backend
+from test_unify import _Engine, _Models, _Renderer, _fake_backend, _make
 
 
 @pytest.fixture(autouse=True)
@@ -95,10 +99,91 @@ def test_plugin_question_type_is_answered():
                       "confidence", "extra"}
 
 
-def test_plugin_question_type_is_not_on_the_jev_wire():
-    with pytest.raises(ValidationError, match="unknown type 'sentiment' "
-                       "on the Jev wire"):
-        SystemOneRequest(model="m", **SENTIMENT)
+TONE = {"type": "sentiment", "instructions": "How does it sound?"}
+
+
+def test_plugin_question_type_on_the_jev_wire():
+    s = _make(ServingSystemOne, backend=_fake_backend())
+    r = _run(s.create_systemone(SystemOneRequest(model="m", **SENTIMENT)))
+    a = r.model_dump()["answers"]["tone"]
+    # no Jev shape for a plugin type: the whole answer comes back
+    assert set(a) == {"type", "probabilities", "label", "polarity",
+                      "confidence", "extra"}
+    assert a["type"] == "sentiment"
+
+
+def test_plugin_question_type_on_the_openai_wire():
+    req = DecisionsRequest(model="m", input="I love it", questions=[
+        {**TONE, "name": "tone"},
+        {"type": "predicate", "instructions": "Is it a review?"}])
+    r = _run(_make(backend=_fake_backend()).create_decisions(req))
+    a = r["answers"][0]
+    assert a["name"] == "tone" and a["type"] == "sentiment"
+    assert set(a) == {"name", "type", "probabilities", "label", "polarity",
+                      "confidence", "extra"}
+    assert r["answers"][1]["type"] == "predicate"
+
+
+def test_plugin_question_same_answer_on_both_wires():
+    name = _fake_backend()
+    dec = _run(_make(backend=name).create_decisions(DecisionsRequest(
+        model="m", input="I love it", questions=[TONE])))
+    jev = _run(_make(ServingSystemOne, backend=name).create_systemone(
+        SystemOneRequest(model="m", state="I love it",
+                         questions={"0": TONE}))).model_dump()
+    a, b = dec["answers"][0], jev["answers"]["0"]
+    assert a["probabilities"] == b["probabilities"]
+    assert a["label"] == b["label"]
+
+
+def test_plugin_question_name_on_the_openai_wire():
+    with pytest.raises(ValidationError, match="name must be a string"):
+        DecisionsRequest(model="m", input="x",
+                         questions=[{**TONE, "name": None}])
+    req = DecisionsRequest(model="m", input="x", questions=[TONE])
+    assert req.questions[0].name is None
+
+
+def test_plugin_question_fields_checked_on_the_openai_wire():
+    with pytest.raises(ValidationError, match="sentiment question"):
+        DecisionsRequest(model="m", input="x",
+                         questions=[{**TONE, "criteria": {}}])
+
+
+def test_unknown_type_on_the_openai_wire():
+    with pytest.raises(ValidationError,
+                       match="unknown question type 'ranking'.*sentiment"):
+        DecisionsRequest(model="m", input="x", questions=[
+            {"type": "ranking", "instructions": "i"}])
+
+
+def test_jev_types_stay_off_the_openai_wire():
+    # predicate is OpenAI's yes/no; Jev's noul is not a plugin
+    with pytest.raises(ValidationError, match="unknown question type "
+                       "'noul'"):
+        DecisionsRequest(model="m", input="x", questions=[
+            {"type": "noul", "instructions": "i"}])
+
+
+@pytest.mark.parametrize("name", ["predicate", "refusal"])
+def test_openai_type_names_are_reserved(name):
+    class Clash(Sentiment):
+        pass
+    Clash.name = name
+    with pytest.raises(ValueError, match="reserved"):
+        register_question_type(Clash())
+
+
+def test_openai_sdk_reads_a_plugin_answer():
+    # The SDK builds responses leniently: an unknown answer type keeps
+    # its type and fields.
+    pytest.importorskip("openai.types.decision")
+    from openai._models import construct_type
+    from openai.types.decision import Decision
+    req = DecisionsRequest(model="m", input="I love it", questions=[TONE])
+    r = _run(_make(backend=_fake_backend()).create_decisions(req))
+    a = construct_type(type_=Decision, value=r).answers[0]
+    assert a.type == "sentiment" and a.label == r["answers"][0]["label"]
 
 
 def test_plugin_question_type_validates_its_own_fields():
