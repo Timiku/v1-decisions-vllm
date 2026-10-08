@@ -1,13 +1,12 @@
 # v1/decisions: Typed Decisions for vLLM
 
-This repository proposes a first-class vLLM endpoint, **/v1/decisions**. It unifies the existing typed-decision (Jev-compatible) backends under one API, and is designed so the protocol is easy to extend in future open-source work.
+This repository is a working implementation of typed decisions in vLLM's API server, with modular backends and custom per-request parameters. vLLM's own PRs bring the endpoints themselves ([#59299](https://github.com/vllm-project/vllm/pull/59299) for `/v1/systemone`, [#60465](https://github.com/vllm-project/vllm/pull/60465) for OpenAI's format at `/v1/decisions`). RFC [#59365](https://github.com/vllm-project/vllm/issues/59365) proposes the two parts they leave open, modular backends and custom parameters, as additions to those PRs.
 
 A typed decision returns a probability distribution over a fixed set of options instead of generated text. You send the input (the evidence) and one or more typed questions. For each question, the server reads the answer from the model's logits in a single forward pass and returns calibrated probabilities.
 
 /v1/decisions speaks OpenAI's Decisions format, so a client built with the OpenAI SDK can point at a self-hosted model. Everything OpenAI's format has no field for (per-request calibration, backend selection and options, a seed, and diagnostics) goes in an `extra` block. Backends are pluggable, and so are question types (see [Extending the API](#extending-the-api)). /v1/systemone speaks the request format of TypeSafe's Jev API, so existing Jev clients can point at a self-hosted model too. Both are answered by the same code path: the same question gives the same probabilities on either endpoint.
 
-The endpoint is proposed for upstream vLLM. This repository contains a patch with all the changes demonstrating the
-reference implementation, built as an overlay on stock vLLM **v0.30.0**.
+It is built as an overlay on stock vLLM **v0.30.0**.
 
 Three backends are included:
 
@@ -1008,7 +1007,8 @@ still needs to be measured.
 
 See `CHANGELOG.md`.
 
-Porting to vLLM main is the next step; `overlay/README.md` lists the known
-differences.
+The next step is offering the modular backends and the custom-parameter
+block as follow-ups to #59299 and #60465 (RFC #59365);
+`overlay/README.md` lists the known differences from vLLM main.
 
 License: Apache-2.0.
