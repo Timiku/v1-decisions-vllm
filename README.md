@@ -1,4 +1,4 @@
-# v1/decisions: Typed Decisions for vLLM
+# Modular OpenAI/Jev Typed Decisions Endpoint for vLLM
 
 This repository is a working implementation of typed decisions in vLLM's API server, with modular backends and custom per-request parameters. vLLM's own PRs bring the endpoints themselves ([#59299](https://github.com/vllm-project/vllm/pull/59299) for `/v1/systemone`, [#60465](https://github.com/vllm-project/vllm/pull/60465) for OpenAI's format at `/v1/decisions`). RFC [#59365](https://github.com/vllm-project/vllm/issues/59365) proposes the two parts they leave open, modular backends and custom parameters, as additions to those PRs.
 
